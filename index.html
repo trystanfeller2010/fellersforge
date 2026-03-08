@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#070B12"/>
+<title>Feller's Forge</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:#070B12;min-height:100vh;overflow-x:hidden;}
+#root{max-width:480px;margin:0 auto;min-height:100vh;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Load React first, synchronously -->
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+
+<!-- Expose hooks as globals so JSX can use them without imports -->
+<script>
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+var useCallback = React.useCallback;
+</script>
+
+<!-- Babel to transform JSX -->
+<script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+<!-- App code as babel script - this is the key change, type=text/babel works inline -->
+<script type="text/babel">
+
+
+/* ─── EXERCISE DATABASE with form guides ─────────────────────────── */
+const EXERCISE_INFO = {
+  "Barbell Bench Press":{
+    equipment:"Barbell + Bench",muscle:"Chest (primary), Triceps, Front Delts",
+    steps:["Lie flat, eyes under bar, feet flat on floor","Grip slightly wider than shoulder-width","Unrack, lower bar to lower chest with control (2–3 sec)","Touch chest lightly — do NOT bounce","Drive bar up and slightly back toward rack","Keep shoulder blades pinched together throughout"],
+    cues:["🔒 Shoulder blades PINCHED & DOWN","📐 Bar touches lower chest, not neck","🦶 Drive feet into floor for stability","💨 Breathe in on way down, exhale on push"],
+    mistakes:["Bouncing bar off chest","Flaring elbows 90°","Butt off the bench","Bar drifting toward face"],
+    rest:"2–3 min between sets"
+  },
+  "Incline Dumbbell Press":{
+    equipment:"Dumbbells + Incline Bench (30–45°)",muscle:"Upper Chest (primary), Front Delts",
+    steps:["Set bench to 30–45° — not higher or it becomes shoulder","Sit back, dumbbells on thighs, kick up one at a time","Start at shoulder level, palms facing forward","Press up and IN — dumbbells nearly touch at top","Lower slowly until chest gets a full stretch","Keep core tight, back on the pad"],
+    cues:["📐 30–45° only — higher = shoulders, not chest","🤏 Squeeze chest at top like crushing a ball","⬇️ Full stretch at bottom = more muscle growth","🔁 Neutral wrists — don't let them bend back"],
+    mistakes:["Bench angle too high (turns into shoulder press)","Not getting full stretch at bottom","Rushing the negative"],
+    rest:"90 sec between sets"
+  },
+  "Cable Chest Fly":{
+    equipment:"Cable Machine (both sides, chest height)",muscle:"Chest (stretch focus), Front Delts",
+    steps:["Set cables to chest height on both sides","Stand in center, slight forward lean, stagger stance","Start with arms wide, slight bend in elbows — HOLD that bend","Bring hands together in front of chest in an arc motion","Squeeze hard for 1 second at peak, feel the chest contract","Slowly return to stretch position — feel it in the pec"],
+    cues:["🦾 Same elbow bend the ENTIRE movement — don't straighten arms","💥 Hard squeeze at center — hold 1 sec","🐢 Slow on the way back out — that stretch = gains","🙏 Think: hugging a big tree"],
+    mistakes:["Straightening elbows mid-rep (turns into press)","Using too much weight and losing the squeeze","Rushing through reps"],
+    rest:"60 sec between sets"
+  },
+  "Seated DB Shoulder Press":{
+    equipment:"Dumbbells + Bench (upright)",muscle:"Delts (all heads), Triceps",
+    steps:["Sit upright, back supported, feet flat","Dumbbells at shoulder height, palms facing forward","Press straight up — stop just SHORT of locking out","Lower back to ear level with control","Keep core engaged, don't arch lower back"],
+    cues:["📏 Stop just before full lockout — keeps tension on delts","⬇️ Elbows at 90° at bottom (like goalpost arms)","🚫 Don't lean back — keep torso upright","💨 Exhale on the press"],
+    mistakes:["Arching lower back (too heavy)","Locking out elbows fully","Letting elbows drift behind the body"],
+    rest:"90 sec between sets"
+  },
+  "Lateral Raises":{
+    equipment:"Dumbbells (light!)",muscle:"Side Delts (width builder)",
+    steps:["Stand tall, dumbbells at sides, slight bend in elbows","Raise arms out to sides like wings — lead with ELBOWS not hands","Stop at shoulder height — no higher needed","Pause 1 second at top","Lower SLOWLY (3 seconds down) — this is where growth happens","Tilt little finger slightly up at top for full delt activation"],
+    cues:["🪰 Imagine pouring water out of a pitcher at the top (pinky up)","⬆️ Lead with elbows, not your hands","🐢 GO SLOW — 3 seconds down minimum","⚡ Light weight, strict form = more growth than heavy cheating"],
+    mistakes:["Using momentum and swinging","Going too heavy (ruins the movement)","Raising above shoulder height","Shrugging shoulders up"],
+    rest:"60 sec between sets"
+  },
+  "Tricep Rope Pushdowns":{
+    equipment:"Cable Machine + Rope attachment",muscle:"Triceps (all 3 heads)",
+    steps:["Set cable to high position, attach rope","Stand close, elbows pinned tight to your sides — KEEP THEM THERE","Grab rope with thumbs up, pull DOWN and slightly OUT at bottom","Fully extend arms, flare rope ends apart at bottom for max contraction","Control back up to 90° — don't let elbows drift forward"],
+    cues:["📌 ELBOWS PINNED TO SIDES — if they move, the weight is too heavy","🔻 Flare rope apart at bottom for full tricep squeeze","🔄 Only your forearms move — everything else stays still","💥 Squeeze hard at full extension"],
+    mistakes:["Elbows flaring out","Leaning forward into the movement","Not reaching full extension"],
+    rest:"60 sec between sets"
+  },
+  "Overhead Tricep Extension":{
+    equipment:"Dumbbell (one heavy DB) or EZ-bar",muscle:"Long Head of Triceps (most important for arm size)",
+    steps:["Sit upright or stand, hold one dumbbell with both hands","Lift overhead, arms straight, elbows pointing forward","Lower behind head by bending elbows ONLY — elbows stay pointing up","Get full stretch behind head, then press back up","Keep core tight to avoid arching back"],
+    cues:["☝️ Elbows stay POINTING FORWARD — not flaring out","⬇️ Deep stretch behind head = long head activation = arm thickness","🧱 Core tight to protect lower back","🎯 This exercise builds the most arm size — take it seriously"],
+    mistakes:["Elbows flaring out to sides","Not getting full stretch at bottom","Arching lower back"],
+    rest:"60 sec between sets"
+  },
+  "Plank":{
+    equipment:"Floor / Mat",muscle:"Core (full: abs, obliques, lower back, glutes)",
+    steps:["Forearms on ground, elbows under shoulders","Toes on floor, body in a STRAIGHT line from head to heels","Squeeze ABS hard, squeeze GLUTES hard","Don't let hips sag down or pike up","Look at floor (neutral neck)","Breathe steadily — don't hold your breath"],
+    cues:["📏 Straight line — pretend you're a plank of wood","💎 SQUEEZE abs like someone is about to punch you","🍑 Squeeze glutes as hard as possible","👀 Eyes to floor, neck neutral"],
+    mistakes:["Hips sagging down (most common)","Hips piking up","Holding breath","Looking up (strains neck)"],
+    rest:"45 sec between sets"
+  },
+  "Barbell Back Squat":{
+    equipment:"Squat Rack + Barbell",muscle:"Quads (primary), Glutes, Hamstrings, Core",
+    steps:["Bar on traps (below neck, not on neck bones)","Grip just outside shoulders, elbows pointing slightly back-down","Unrack, step back, feet shoulder-width, toes slightly out 15–30°","Take big breath and brace core like you're about to get hit","Break at hips AND knees simultaneously — sit back AND down","Descend until thighs are PARALLEL or below to floor","Drive through the WHOLE foot to stand back up"],
+    cues:["💨 BIG breath and brace core BEFORE you descend","📐 Chest up — don't let torso collapse forward","🦵 Knees track over toes — push them OUT","⬇️ At least parallel — depth = glute and quad activation"],
+    mistakes:["Knees caving inward (very common)","Heels rising off floor","Chest collapsing forward","Not reaching parallel depth"],
+    rest:"2–3 min between sets"
+  },
+  "Romanian Deadlift":{
+    equipment:"Barbell or Dumbbells",muscle:"Hamstrings (primary stretch), Glutes, Lower Back",
+    steps:["Stand with bar at hip level, hip-width stance","Push hips BACK (not down) as if closing a car door with your butt","Bar slides down your legs — maintain contact with shins/thighs","Feel the hamstring STRETCH — this is the entire point","Go as far as your hamstring flexibility allows without lower back rounding","Drive hips FORWARD to stand up, squeeze glutes at top"],
+    cues:["🍑 HINGE at the hips — push butt back toward wall behind you","📏 Keep bar close to your body the whole way down","⚠️ Stop when you FEEL hamstring stretch — not when back rounds","🔒 Soft bend in knees — this is NOT a squat"],
+    mistakes:["Bending knees too much (becomes a squat)","Rounding lower back at bottom","Bar drifting away from legs","Not getting full hip extension at top"],
+    rest:"90 sec between sets"
+  },
+  "Leg Press":{
+    equipment:"Leg Press Machine",muscle:"Quads (primary), Glutes, Hamstrings",
+    steps:["Sit back, low back pressed into the pad","Feet shoulder-width on platform — higher foot placement = more glutes","Lower weight by bending knees toward chest — control it","Stop when knees approach 90° — don't let lower back peel off pad","Drive through FULL foot (not just toes) to press back up","Stop just short of full lockout to keep tension"],
+    cues:["🚫 NEVER lock out knees at top — dangerous and removes tension","📌 Back stays flat against pad — if it peels off, weight too heavy","👣 Heels drive through platform","⬇️ Control the descent — don't let it crash down"],
+    mistakes:["Letting lower back round off the pad","Locking knees out fully","Feet too close together","Partial range of motion"],
+    rest:"90 sec between sets"
+  },
+  "Leg Curl (Machine)":{
+    equipment:"Leg Curl Machine (lying or seated)",muscle:"Hamstrings (isolation)",
+    steps:["Lying version: face down, pad just above heels, hips flat","Squeeze hamstrings and curl heels toward glutes","Pause at full contraction (heels near butt) for 1 second","Lower SLOWLY — 3 seconds down","Don't let hips rise off the pad"],
+    cues:["💥 SQUEEZE at the top — pause 1 full second","🐢 Slow on the way down — that's where the growth is","📌 Hips stay flat — if they rise, weight is too heavy","🎯 Think 'squeeze' not 'kick'"],
+    mistakes:["Rushing the negative","Hips rising off pad","Using momentum to swing weight up"],
+    rest:"60 sec between sets"
+  },
+  "Leg Extension (Machine)":{
+    equipment:"Leg Extension Machine",muscle:"Quads (isolation)",
+    steps:["Sit with back against pad, knees at edge of seat","Pad should rest on shins just above ankles","Extend legs until straight, squeeze quads at top","Pause 1 second at full extension","Lower slowly and with control"],
+    cues:["💥 Hard quad squeeze at full extension","🐢 Control the negative — don't let it crash","📐 Toes slightly toward you at top for full activation","⚠️ Don't use this as your primary quad exercise — supporting movement only"],
+    mistakes:["Not reaching full extension","Rushing through reps","Seat too far back (creates knee strain)"],
+    rest:"60 sec between sets"
+  },
+  "Seated Calf Raise":{
+    equipment:"Seated Calf Raise Machine or barbell on thighs",muscle:"Soleus (deeper calf muscle)",
+    steps:["Sit with pads on lower thighs just above knees","Balls of feet on platform, heels hanging off","Lower heels as far down as possible — full stretch","Pause 1 second at bottom","Drive up on tiptoes as high as possible","Pause 1 second at top — squeeze"],
+    cues:["⬇️ FULL stretch at bottom — this is the whole exercise","☝️ FULL contraction at top — rise on your tippy toes","⏱️ Pause at both ends — no bouncing","🎯 Calves are stubborn — they need full ROM and volume to grow"],
+    mistakes:["Partial range of motion (most common)","Bouncing at bottom","No pause at top"],
+    rest:"60 sec between sets"
+  },
+  "Ab Wheel Rollout":{
+    equipment:"Ab Wheel",muscle:"Rectus Abdominis, Deep Core, Lats",
+    steps:["Kneel on mat, ab wheel directly under shoulders","Brace core HARD as if bracing for a punch","Roll forward slowly, letting hips hinge — body extends toward floor","Go as far as you can WITHOUT letting lower back arch/sag","Pull wheel back by contracting abs and lats — don't just stand up with your hips"],
+    cues:["🔒 Core braced the ENTIRE time — never let lower back arch","⬇️ Go only as far as you can control — quality over depth","💪 Pull back using ABS, not by pushing up with your hips","🔰 Start with short range of motion, extend over weeks"],
+    mistakes:["Lower back arching (too far = injury risk)","Using hips to stand back up instead of abs","Going too fast"],
+    rest:"60 sec between sets"
+  },
+  "Bicycle Crunches":{
+    equipment:"Floor / Mat",muscle:"Rectus Abdominis, Obliques",
+    steps:["Lie on back, hands lightly behind head (don't pull neck)","Lift shoulder blades off floor","Bring right elbow toward left knee while extending right leg","Rotate through the torso — not just the elbow","Switch sides in a controlled cycling motion","Keep lower back pressed into the floor"],
+    cues:["🔄 ROTATE the torso — twist from the abs, not the elbow","⬇️ Lower back STAYS on the floor","🐢 SLOW and controlled — not a speed exercise","🚫 Hands behind head — don't yank your neck"],
+    mistakes:["Pulling neck forward with hands","Going too fast (becomes a momentum exercise)","Not rotating through the torso","Lower back arching off floor"],
+    rest:"45 sec between sets"
+  },
+  "Pull-Ups / Assisted":{
+    equipment:"Pull-Up Bar or Assisted Pull-Up Machine",muscle:"Lats (primary), Biceps, Rear Delts, Upper Back",
+    steps:["Hang from bar, hands just wider than shoulder-width, palms forward","DEAD HANG first — full arm extension, shoulder blades relaxed","Initiate by DEPRESSING shoulder blades (pull them DOWN)","Then pull elbows down and back toward your hips","Chin clears bar at top — aim for chest to bar eventually","Lower all the way back down — don't skip the negative"],
+    cues:["⬇️ Start each rep from a DEAD HANG — full extension","💡 Think 'pull elbows to hips' not 'pull chin to bar'","🔽 Shoulder blades DOWN before you pull — activates lats","🐢 Lower SLOWLY — the negative builds just as much strength"],
+    mistakes:["Kipping or swinging (removes lat activation)","Not reaching full extension at bottom","Shrugging shoulders up","Looking down"],
+    rest:"2 min between sets"
+  },
+  "Barbell Bent-Over Row":{
+    equipment:"Barbell",muscle:"Upper Back, Lats, Rear Delts, Biceps",
+    steps:["Hip-width stance, bend forward 45° at hips, slight knee bend","Back STRAIGHT — same position as the top of an RDL","Bar hanging from hands, arms straight","Pull bar to LOWER chest / upper abs — elbows back, not out","Squeeze shoulder blades together at top","Lower all the way back to full arm extension"],
+    cues:["📐 45° torso angle — if you go more upright it becomes a shrug","🎯 Bar to LOWER chest — not to your belly button","🔙 Drive ELBOWS back and up — not just the bar","🔒 Neutral spine the whole time — never round your back"],
+    mistakes:["Rounding lower back","Using momentum to jerk the bar up","Elbows flaring out wide","Partial range of motion at bottom"],
+    rest:"90 sec between sets"
+  },
+  "Seated Cable Row":{
+    equipment:"Cable Machine + V-bar or wide bar",muscle:"Middle Back, Lats, Rear Delts, Biceps",
+    steps:["Sit upright, feet on platform, slight knee bend","Lean slightly forward to grab handle — starting stretch","Pull handle to your lower sternum, sitting tall","Squeeze shoulder blades TOGETHER at the end — hold 1 second","Lean forward slightly on the way back — controlled stretch","Don't round spine at any point"],
+    cues:["🔙 Squeeze shoulder blades at the end — HOLD 1 second","📏 Sit TALL as you pull — don't lean back","⬅️ Elbows pull BACK and close to your body","🌊 Feel the full stretch at the start of each rep"],
+    mistakes:["Leaning way back (turns into a lower back exercise)","Elbows flaring out","No squeeze at the end of the rep","Rounding spine on the stretch"],
+    rest:"90 sec between sets"
+  },
+  "Single-Arm DB Row":{
+    equipment:"Dumbbell + Bench",muscle:"Lats, Upper Back, Biceps",
+    steps:["Place one hand and same-side knee on bench for support","Back parallel to floor, back straight","Dumbbell hanging from the free hand, arm straight","Drive elbow UP and BACK — like starting a lawn mower","Bring dumbbell to hip level, not to armpit","Full stretch at bottom between every rep"],
+    cues:["⬆️ Drive ELBOW up — the dumbbell just goes along for the ride","🔙 Full stretch at the bottom — let the lat lengthen","📏 Back PARALLEL to floor — don't rotate too much","💪 Think 'row your elbow to your hip' not 'row the weight'"],
+    mistakes:["Rotating torso too much (becoming a twist)","Not reaching full arm extension at bottom","Pulling the dumbbell to the armpit instead of hip","Back not parallel to floor"],
+    rest:"60 sec between sets"
+  },
+  "Face Pulls (Cable)":{
+    equipment:"Cable Machine + Rope (high position)",muscle:"Rear Delts, External Rotators, Traps — SHOULDER HEALTH",
+    steps:["Set cable high, attach rope, grab with thumbs pointing toward you","Step back, arms straight in front","Pull rope to FOREHEAD, separating hands at the end","Elbows should go ABOVE shoulder height — high and wide","Think: pulling the rope apart as you bring it to your face","Hold 1 second and squeeze hard","Control back to start"],
+    cues:["☝️ ELBOWS HIGH — above shoulders — this is the whole movement","👐 PULL THE ROPE APART as you bring it to your face","🧠 This is the most important exercise for shoulder health — don't skip it","⚡ Light weight, perfect form, every single time"],
+    mistakes:["Elbows too low (becomes a row, not a face pull)","Not separating the rope at the end","Too heavy — ruins the form","Pulling to the chin instead of forehead"],
+    rest:"60 sec between sets"
+  },
+  "Barbell / EZ-Bar Curl":{
+    equipment:"Barbell or EZ-Bar",muscle:"Biceps (primary), Brachialis",
+    steps:["Stand upright, shoulder-width stance","Underhand grip (or EZ-bar angled grip), elbows at sides","Curl bar up, keeping ELBOWS PINNED to sides","Full contraction at top — squeeze bicep hard","Lower SLOWLY — 3 seconds down — don't let it drop","Full extension at bottom — let bicep stretch fully"],
+    cues:["📌 ELBOWS STAY AT YOUR SIDES — no swinging, no cheating","⬇️ 3-second negative = more growth — don't rush it","💪 Squeeze HARD at the top before you lower","🔄 Full extension at bottom — don't short rep it"],
+    mistakes:["Swinging body to get weight up","Elbows drifting forward","Not reaching full extension at bottom","Curling wrists (EZ-bar helps with this)"],
+    rest:"60 sec between sets"
+  },
+  "Hammer Curls":{
+    equipment:"Dumbbells",muscle:"Brachialis (under bicep), Brachioradialis (forearm), Biceps",
+    steps:["Dumbbells at sides, neutral grip (palms facing each other — like holding a hammer)","Curl ONE arm at a time OR both together","Keep elbow pinned to side","Curl up until forearm is vertical","Lower slowly with control","Alternate arms or do both together"],
+    cues:["🔨 Neutral grip (thumbs up) — this targets brachialis for arm THICKNESS","📌 Elbows stay at sides — strict form","🔄 Can alternate arms for better control","⬇️ Slow negative for maximum growth"],
+    mistakes:["Rotating wrist to a supinated grip (becomes regular curl)","Swinging to get weight up","Partial range of motion"],
+    rest:"60 sec between sets"
+  },
+  "Hanging Knee Raises":{
+    equipment:"Pull-Up Bar",muscle:"Lower Abs, Hip Flexors, Core",
+    steps:["Dead hang from pull-up bar, arms straight","Tuck chin slightly, engage core","Bring KNEES up to chest — don't just raise legs slightly","At the top, TILT YOUR PELVIS BACKWARD to hit lower abs","Lower slowly — don't just let legs drop","Progress to straight leg raises when this becomes easy"],
+    cues:["⬆️ Bring knees all the way to CHEST — full range","🔄 TILT PELVIS at top — this contracts lower abs fully","🐢 SLOW lower — the descent = half the exercise","📏 No swinging — if you swing, use less momentum"],
+    mistakes:["Only raising legs 45° (partial range)","Not tilting pelvis at top (just hip flexors, not abs)","Swinging and using momentum","Rushing the negative"],
+    rest:"60 sec between sets"
+  },
+  "Barbell Hip Thrust":{
+    equipment:"Barbell + Bench + Pad for bar",muscle:"Glutes (primary), Hamstrings",
+    steps:["Sit with upper back against the bench (shoulder blades on bench edge)","Bar over hips — use a pad or folded towel to protect hips","Feet shoulder-width, toes slightly out, heels in line with knees","Drive through heels and upper back to thrust hips upward","At the top, hips fully extended, SQUEEZE glutes HARD for 2 seconds","Body forms a straight line from shoulders to knees at top","Lower hips back down — controlled"],
+    cues:["🍑 SQUEEZE glutes HARD at top — hold 2 seconds minimum","⬆️ Full hip extension at top — flat from shoulders to knees","👣 Heels drive through floor — not toes","⬇️ Chin tucked slightly — don't hyperextend neck"],
+    mistakes:["Not reaching full hip extension","Not squeezing glutes at the top","Too much lower back extension (arching)","Feet too far forward (hamstrings do the work instead of glutes)"],
+    rest:"90 sec between sets"
+  },
+  "Bulgarian Split Squat":{
+    equipment:"Dumbbells or Barbell + Bench",muscle:"Quads (primary), Glutes, Balance",
+    steps:["Stand 2–3 feet in front of a bench","Place rear foot on bench — laces down","Front foot far enough forward that your shin stays vertical","Lower straight down until rear knee nearly touches floor","Front knee tracks over toes — push it out slightly","Drive through front heel to stand back up","Keep torso upright throughout"],
+    cues:["📐 Front shin should be VERTICAL at bottom — not angled forward","⬇️ Lower STRAIGHT DOWN — don't lean forward","🦵 Push front knee slightly OUT over your pinky toe","😤 Hardest exercise in this program — embrace the burn"],
+    mistakes:["Front foot too close (knee goes way past toes)","Leaning torso too far forward","Rear foot too high causes knee strain","Back knee not going all the way to floor"],
+    rest:"90 sec between sets"
+  },
+  "Hack / Goblet Squat":{
+    equipment:"Hack Squat Machine OR single dumbbell/kettlebell",muscle:"Quads (primary), VMO (inner quad)",
+    steps:["Goblet: Hold dumbbell vertically at chest, elbows pointing down","Feet shoulder-width, toes out 15–30°","Squat down between arms — elbows brush inside of knees","Descend until thighs are parallel or below","Keep chest tall, heels down","Drive through heels to stand — squeeze glutes at top"],
+    cues:["💎 Hold dumbbell like a goblet at chest — elbows down","⬇️ Elbows brush inside knees — forces knees OUT","📏 Chest TALL throughout — don't collapse forward","🎯 Great for learning squat mechanics — use it as practice"],
+    mistakes:["Heels rising (go lighter or elevate heels slightly)","Chest collapsing forward","Knees caving inward","Partial depth"],
+    rest:"90 sec between sets"
+  },
+  "Lying Leg Curl":{
+    equipment:"Lying Leg Curl Machine",muscle:"Hamstrings (full stretch)",
+    steps:["Lie face down, pad just above heels, hips flat on machine","Toes pointed slightly inward for full biceps femoris activation","Curl heels toward glutes — squeeze hard at top","PAUSE 1 full second at peak contraction","Lower SLOWLY — 3 seconds minimum — this is where growth happens"],
+    cues:["🦵 Toes slightly IN = outer hamstring activation","💥 PAUSE at top — don't just touch and go","🐢 3-second lower — rushing kills the gains","📌 Hips stay flat — if they rise, weight is too heavy"],
+    mistakes:["Hips rising off pad","No pause at peak contraction","Rushing the negative","Toes pointing out (reduces activation)"],
+    rest:"60 sec between sets"
+  },
+  "Standing Calf Raise":{
+    equipment:"Calf Raise Machine or Smith Machine or Step",muscle:"Gastrocnemius (outer, visible calf)",
+    steps:["Balls of feet on edge of platform, heels hanging off","Full stretch — heels as low as possible — PAUSE 1 second","Rise on tiptoes as HIGH as possible — PAUSE 1 second","Control back down — don't bounce","Single leg version is even better if machine allows"],
+    cues:["⬇️ FULL stretch at bottom — pause 1 second to stop the bounce reflex","☝️ FULL rise at top — as high as possible","⏱️ Pause at BOTH ends — no bouncing ever","🎯 Calves respond to high reps with full ROM — these two things matter most"],
+    mistakes:["Partial range of motion (most common calf mistake)","Bouncing at the bottom (uses stretch reflex instead of muscle)","Not pausing at the top"],
+    rest:"60 sec between sets"
+  },
+  "Pallof Press / Woodchop":{
+    equipment:"Cable Machine",muscle:"Core (anti-rotation), Obliques",
+    steps:["Set cable at chest height, stand sideways to machine","Grab handle with both hands, hold at chest","Press hands STRAIGHT out from chest — resist the cable pulling you sideways","Hold for 2 seconds fully extended","Return to chest — that is one rep","Core fights rotation the ENTIRE time — that is the exercise"],
+    cues:["🛡️ The point is to RESIST rotation — brace hard","📏 Press straight OUT — not toward the cable machine","💪 Core engaged from the moment you step back","🔄 Both sides equally important"],
+    mistakes:["Letting the cable pull you into rotation","Not bracing core before pressing","Going too heavy (ruins the anti-rotation stimulus)"],
+    rest:"60 sec between sets"
+  },
+  "Dead Bug":{
+    equipment:"Floor / Mat",muscle:"Deep Core (TVA), Lower Abs, Stability",
+    steps:["Lie on back, arms straight up toward ceiling","Knees bent 90°, legs lifted — like sitting in a chair but on your back","Lower back PRESSED FLAT into the floor — this must stay throughout","Slowly lower right arm and left leg toward floor simultaneously","Lower back stays flat — if it arches, you've gone too far","Return to start, alternate sides"],
+    cues:["🔒 LOWER BACK must stay flat on the floor — if it lifts, you went too far","⬇️ Go only as far as you can control","🔄 Opposite arm and leg move together","🌬️ Breathe — don't hold your breath"],
+    mistakes:["Lower back arching off floor (most important mistake)","Moving same-side arm and leg","Rushing through reps","Holding breath"],
+    rest:"45 sec between sets"
+  },
+  "Side Plank":{
+    equipment:"Floor / Mat",muscle:"Obliques, Core Stability, Glutes",
+    steps:["Lie on your side, forearm on ground, elbow under shoulder","Stack feet (or stagger front-to-back for balance)","Lift hips — body forms a straight diagonal line","Free hand on hip or pointing up","Squeeze obliques and glutes throughout","Don't let hips sag or rotate forward"],
+    cues:["📏 Straight line from head to feet — no sag, no pike","💪 Squeeze obliques actively — don't just hold passively","🍑 Squeeze glutes to keep hips in line","👁️ Look forward, not down"],
+    mistakes:["Hips sagging down","Hips rotating forward","Shoulder blade winging out","Head drooping"],
+    rest:"45 sec between sets"
+  },
+  "Overhead Press (OHP)":{
+    equipment:"Barbell (standing or seated)",muscle:"Delts (all heads), Triceps, Upper Chest, Core",
+    steps:["Bar in front of neck, grip slightly wider than shoulders","Elbows slightly forward (not straight out like a bench)","Brace core HARD — this protects your lower back","Press bar straight up, tuck chin as bar passes face","Lock out overhead — full extension","Lower bar back to collarbone/upper chest — controlled"],
+    cues:["💨 BRACE CORE before every rep — this is a full body movement","📏 Elbows slightly FORWARD at start — not flared out","⬆️ Press straight UP — bar shouldn't drift forward","🔒 Glutes and core tight throughout"],
+    mistakes:["Lower back hyperextending (butt wink)","Bar drifting forward","Elbows flaring too wide","Not locking out at top"],
+    rest:"2 min between sets"
+  },
+  "Arnold Press":{
+    equipment:"Dumbbells",muscle:"All 3 Deltoid Heads — Front, Side, Rear",
+    steps:["Start with dumbbells at chin level, palms FACING YOU","Press up while rotating palms to face FORWARD","Reach full overhead extension, palms now facing away","Lower while rotating palms back to face you","Full rotation on every rep — this is the whole point"],
+    cues:["🔄 ROTATE the entire way — that's what makes this better than regular DB press","🎯 Hits all 3 delt heads in one movement","⬆️ Full extension overhead — don't cut it short","⬇️ Full rotation on the way down too — don't rush it"],
+    mistakes:["Partial rotation (defeats the purpose)","Not reaching full extension overhead","Going too heavy (ruins the rotation)"],
+    rest:"90 sec between sets"
+  },
+  "Rear Delt Fly":{
+    equipment:"Dumbbells or Cable Machine",muscle:"Rear Delts, Upper Back — POSTURE AND SHOULDER HEALTH",
+    steps:["Bend over 90° at hips, back flat, dumbbells hanging straight down","Slight bend in elbows — HOLD that bend","Raise arms out to sides like wings, leading with elbows","Squeeze shoulder blades together at top","Lower slowly — controlled"],
+    cues:["🪰 Think 'fly' — elbows lead, not hands","🔙 SQUEEZE shoulder blades at the top","⬇️ Slow lower — 3 seconds","⚠️ Light weight — most people go too heavy on this and it becomes traps"],
+    mistakes:["Going too heavy (turns into a shrug)","Not getting full range of motion","Rushing the negative","Straightening elbows"],
+    rest:"60 sec between sets"
+  },
+  "Weighted Dips":{
+    equipment:"Dip Bars",muscle:"Lower Chest, Triceps, Front Delts",
+    steps:["Grip parallel bars, press up to straight arms","Lean SLIGHTLY forward (10–15°) for chest emphasis","Lower yourself until upper arms are parallel to floor","Feel the chest stretch at the bottom","Press back up — don't fully lock elbows if joints feel pressure","Add weight via belt or dumbbell between feet when bodyweight is easy"],
+    cues:["📐 Slight forward lean = chest. Upright = triceps — pick your goal","⬇️ Upper arm PARALLEL to floor at bottom — full range","🔒 Controlled descent — no dropping","💪 Great compound exercise — eventually add weight via dip belt"],
+    mistakes:["Not leaning forward (if chest is the goal)","Partial range of motion","Dropping too fast","Locking elbows with heavy weight"],
+    rest:"90 sec between sets"
+  },
+  "Close-Grip Bench Press":{
+    equipment:"Barbell + Bench",muscle:"Triceps (primary), Inner Chest",
+    steps:["Same setup as bench press but hands shoulder-width (narrower)","Lower bar to lower chest — same as regular bench","Elbows at about 45° angle — NOT pinned to sides, NOT flared out","Feel the triceps doing most of the work","Press back up to full extension"],
+    cues:["✋ Hands shoulder-width — not touching each other (wrist strain)","📐 Elbows at 45° — not tucked like pulldown, not flared like wide bench","🎯 Focus on feeling the TRICEPS working, not the chest","⬇️ Same controlled descent as regular bench"],
+    mistakes:["Hands too narrow (causes wrist pain)","Elbows flaring too wide (becomes regular bench)","Elbows too tucked in (kills chest involvement)"],
+    rest:"90 sec between sets"
+  },
+  "Cable Curl":{
+    equipment:"Cable Machine + Straight bar or rope",muscle:"Biceps (constant tension)",
+    steps:["Set cable to low position, attach straight bar or rope","Stand back to create tension, grip shoulder-width","Curl up keeping elbows forward and stationary","Full contraction at top — squeeze","Lower SLOWLY with control — 3 seconds — feel the stretch","Cable keeps tension at BOTTOM unlike dumbbells — use that stretch"],
+    cues:["🎯 Cable keeps tension at the BOTTOM — use the full range deliberately","📌 ELBOWS STAY FORWARD and still — only forearms move","💥 Squeeze hard at top before lowering","⬇️ 3-second lower — constant tension = more stimulus"],
+    mistakes:["Swinging elbows forward and back","Rushing the negative","Not reaching full extension at bottom","Going too heavy"],
+    rest:"60 sec between sets"
+  },
+  "Incline DB Curl":{
+    equipment:"Dumbbells + Incline Bench (45–60°)",muscle:"Long Head of Biceps (peak), Biceps stretch",
+    steps:["Set bench to 45–60° incline, sit back with arms hanging straight down","Curl both arms up simultaneously, keeping elbows back","Full contraction at top, slight supination (pinky up) for peak contraction","Lower ALL THE WAY — full stretch at bottom is the whole point of this exercise","The stretched position builds the most size — don't rush past it"],
+    cues:["⬇️ FULL stretch at bottom — arms hanging straight down — this is why you do this exercise","🔙 Keep elbows BACK as you curl — don't let them drift forward","💪 Slight pinky-up rotation at top for peak bicep contraction","⏱️ Slow lower — 3 seconds — savor the stretch"],
+    mistakes:["Not letting arms fully extend at bottom","Elbows drifting forward","Rushing through reps","Bench angle too low"],
+    rest:"60 sec between sets"
+  },
+  "Cable Crunch":{
+    equipment:"Cable Machine + Rope (high position)",muscle:"Rectus Abdominis (weighted)",
+    steps:["Kneel facing cable machine, rope attachment at top","Pull rope to ears — hold there the ENTIRE movement","Crunch DOWN bringing elbows toward knees","Think: pull RIBS toward HIPS — not chin toward knees","Hold contracted position 1 second — really squeeze abs","Return slowly — don't let cable snap you back up"],
+    cues:["🎯 Pull RIBS to HIPS — not chin to knees","🔒 Rope stays at ears — don't move your arms","💥 Squeeze ABS hard at the bottom — 1 second hold","⬇️ This is weighted ab training — treat it seriously like any other muscle"],
+    mistakes:["Pulling with arms instead of abs","Moving from the hips instead of the spine","Not reaching full flexion at bottom","Letting cable pull you back up uncontrolled"],
+    rest:"60 sec between sets"
+  },
+  "Hanging Leg Raise":{
+    equipment:"Pull-Up Bar",muscle:"Lower Abs, Hip Flexors, Core",
+    steps:["Dead hang from bar, core pre-braced","Keep legs straight (or slightly bent if needed)","Raise legs to 90° — or higher to touch the bar for full abs","At the top, TILT PELVIS BACK — posterior pelvic tilt — this is key","Lower SLOWLY — don't just drop","Maintain body control — no swinging"],
+    cues:["🔄 TILT PELVIS at top — curl your tailbone toward the ceiling","⬇️ SLOW lower — 3–4 seconds — this is where lower abs work","📏 Higher = harder — work toward touching the bar","🚫 Zero swinging — if you swing, stop and reset"],
+    mistakes:["Not tilting pelvis at top","Swinging uncontrollably","Dropping legs fast on the way down","Bending knees excessively to compensate for weak abs"],
+    rest:"60 sec between sets"
+  },
+};
+
+/* ─── WORKOUT DAYS ───────────────────────────────────────────────── */
+const DAYS = [
+  {
+    id:"monday",label:"MON",full:"Monday",tag:"PUSH",
+    color:"#3B82F6",glow:"rgba(59,130,246,0.25)",
+    warmup:"5 min bike/treadmill → Arm circles → Band pull-aparts x15 → 2 sets push-ups x10",
+    exercises:[
+      {name:"Barbell Bench Press",sets:4,repsTarget:"6–8",restSec:150,category:"Chest",priority:1},
+      {name:"Incline Dumbbell Press",sets:3,repsTarget:"8–12",restSec:90,category:"Chest",priority:2},
+      {name:"Cable Chest Fly",sets:3,repsTarget:"12–15",restSec:60,category:"Chest",priority:3},
+      {name:"Seated DB Shoulder Press",sets:3,repsTarget:"8–12",restSec:90,category:"Shoulders",priority:1},
+      {name:"Lateral Raises",sets:3,repsTarget:"15–20",restSec:60,category:"Shoulders",priority:2},
+      {name:"Tricep Rope Pushdowns",sets:3,repsTarget:"12–15",restSec:60,category:"Triceps",priority:1},
+      {name:"Overhead Tricep Extension",sets:3,repsTarget:"10–12",restSec:60,category:"Triceps",priority:2},
+      {name:"Plank",sets:3,repsTarget:"30–60s",restSec:45,category:"Core",priority:1},
+    ],
+  },
+  {
+    id:"tuesday",label:"TUE",full:"Tuesday",tag:"LEGS A",
+    color:"#10B981",glow:"rgba(16,185,129,0.25)",
+    warmup:"5 min bike → Hip circles x10 → Bodyweight squats x15 → Leg swings x10 each",
+    exercises:[
+      {name:"Barbell Back Squat",sets:4,repsTarget:"6–8",restSec:150,category:"Quads",priority:1},
+      {name:"Romanian Deadlift",sets:3,repsTarget:"10–12",restSec:90,category:"Hamstrings",priority:1},
+      {name:"Leg Press",sets:3,repsTarget:"10–15",restSec:90,category:"Quads",priority:2},
+      {name:"Leg Curl (Machine)",sets:3,repsTarget:"12–15",restSec:60,category:"Hamstrings",priority:2},
+      {name:"Leg Extension (Machine)",sets:3,repsTarget:"12–15",restSec:60,category:"Quads",priority:3},
+      {name:"Seated Calf Raise",sets:4,repsTarget:"15–20",restSec:60,category:"Calves",priority:1},
+      {name:"Ab Wheel Rollout",sets:3,repsTarget:"8–12",restSec:60,category:"Core",priority:1},
+      {name:"Bicycle Crunches",sets:3,repsTarget:"20 each",restSec:45,category:"Core",priority:2},
+    ],
+  },
+  {
+    id:"wednesday",label:"WED",full:"Wednesday",tag:"PULL",
+    color:"#8B5CF6",glow:"rgba(139,92,246,0.25)",
+    warmup:"5 min cardio → Band pull-aparts x20 → Cat-cow x10 → Dead hang 20 sec",
+    exercises:[
+      {name:"Pull-Ups / Assisted",sets:4,repsTarget:"6–10 max",restSec:120,category:"Back",priority:1},
+      {name:"Barbell Bent-Over Row",sets:4,repsTarget:"8–10",restSec:90,category:"Back",priority:2},
+      {name:"Seated Cable Row",sets:3,repsTarget:"10–12",restSec:90,category:"Back",priority:3},
+      {name:"Single-Arm DB Row",sets:3,repsTarget:"10–12 each",restSec:60,category:"Back",priority:4},
+      {name:"Face Pulls (Cable)",sets:3,repsTarget:"15–20",restSec:60,category:"Rear Delts",priority:1},
+      {name:"Barbell / EZ-Bar Curl",sets:3,repsTarget:"10–12",restSec:60,category:"Biceps",priority:1},
+      {name:"Hammer Curls",sets:3,repsTarget:"12–15",restSec:60,category:"Biceps",priority:2},
+      {name:"Hanging Knee Raises",sets:3,repsTarget:"12–20",restSec:60,category:"Core",priority:1},
+    ],
+  },
+  {
+    id:"thursday",label:"THU",full:"Thursday",tag:"LEGS B",
+    color:"#F59E0B",glow:"rgba(245,158,11,0.25)",
+    warmup:"5 min bike → Glute bridges x15 → Hip flexor stretch 30s each → Band walks x20",
+    exercises:[
+      {name:"Barbell Hip Thrust",sets:4,repsTarget:"10–12",restSec:90,category:"Glutes",priority:1},
+      {name:"Bulgarian Split Squat",sets:3,repsTarget:"8–10 each",restSec:90,category:"Quads",priority:1},
+      {name:"Hack / Goblet Squat",sets:3,repsTarget:"10–12",restSec:90,category:"Quads",priority:2},
+      {name:"Lying Leg Curl",sets:3,repsTarget:"12–15",restSec:60,category:"Hamstrings",priority:1},
+      {name:"Standing Calf Raise",sets:4,repsTarget:"15–20",restSec:60,category:"Calves",priority:1},
+      {name:"Pallof Press / Woodchop",sets:3,repsTarget:"12 each",restSec:60,category:"Core",priority:1},
+      {name:"Dead Bug",sets:3,repsTarget:"10 each",restSec:45,category:"Core",priority:2},
+      {name:"Side Plank",sets:3,repsTarget:"20–30s each",restSec:45,category:"Core",priority:3},
+    ],
+  },
+  {
+    id:"friday",label:"FRI",full:"Friday",tag:"PUSH+ARMS",
+    color:"#EF4444",glow:"rgba(239,68,68,0.25)",
+    warmup:"5 min cardio → Arm circles → Band pull-aparts x20 → Shoulder rotations",
+    exercises:[
+      {name:"Overhead Press (OHP)",sets:4,repsTarget:"6–8",restSec:120,category:"Shoulders",priority:1},
+      {name:"Arnold Press",sets:3,repsTarget:"10–12",restSec:90,category:"Shoulders",priority:2},
+      {name:"Rear Delt Fly",sets:3,repsTarget:"15–20",restSec:60,category:"Rear Delts",priority:1},
+      {name:"Weighted Dips",sets:3,repsTarget:"8–12",restSec:90,category:"Chest/Tri",priority:1},
+      {name:"Close-Grip Bench Press",sets:3,repsTarget:"10–12",restSec:90,category:"Triceps",priority:2},
+      {name:"Cable Curl",sets:3,repsTarget:"12–15",restSec:60,category:"Biceps",priority:1},
+      {name:"Incline DB Curl",sets:3,repsTarget:"10–12",restSec:60,category:"Biceps",priority:2},
+      {name:"Cable Crunch",sets:3,repsTarget:"15–20",restSec:60,category:"Core",priority:1},
+      {name:"Hanging Leg Raise",sets:3,repsTarget:"12–15",restSec:60,category:"Core",priority:2},
+    ],
+  },
+];
+
+const MACROS={protein:150,carbs:375,fats:80,calories:2900};
+const FOOD_DB=[
+  {name:"Chicken Breast",servings:[{label:"3 oz (85g)",cal:140,p:26,c:0,f:3},{label:"6 oz (170g)",cal:280,p:52,c:0,f:6},{label:"8 oz (227g)",cal:373,p:70,c:0,f:8}]},
+  {name:"Ground Beef 90/10",servings:[{label:"4 oz raw",cal:196,p:22,c:0,f:12},{label:"6 oz raw",cal:295,p:33,c:0,f:18},{label:"8 oz raw",cal:393,p:44,c:0,f:24}]},
+  {name:"Eggs",servings:[{label:"1 large",cal:72,p:6,c:0,f:5},{label:"2 large",cal:143,p:13,c:1,f:10},{label:"3 large",cal:215,p:19,c:1,f:15},{label:"4 large",cal:286,p:25,c:2,f:20}]},
+  {name:"Egg Whites",servings:[{label:"2 whites",cal:34,p:7,c:0,f:0},{label:"4 whites (½ cup)",cal:68,p:14,c:1,f:0},{label:"1 cup",cal:126,p:26,c:2,f:0}]},
+  {name:"Canned Tuna (water)",servings:[{label:"1 can (5oz)",cal:109,p:25,c:0,f:1},{label:"2 cans",cal:218,p:50,c:0,f:2}]},
+  {name:"Salmon",servings:[{label:"3 oz",cal:175,p:19,c:0,f:11},{label:"6 oz",cal:350,p:38,c:0,f:22}]},
+  {name:"Greek Yogurt (plain nonfat)",servings:[{label:"½ cup",cal:65,p:11,c:5,f:0},{label:"1 cup",cal:130,p:22,c:9,f:0}]},
+  {name:"Cottage Cheese (2%)",servings:[{label:"½ cup",cal:90,p:13,c:4,f:2},{label:"1 cup",cal:180,p:25,c:8,f:5}]},
+  {name:"Whey Protein",servings:[{label:"1 scoop (~30g)",cal:120,p:25,c:3,f:2},{label:"1.5 scoops",cal:180,p:37,c:4,f:3},{label:"2 scoops",cal:240,p:50,c:6,f:4}]},
+  {name:"Milk (2%)",servings:[{label:"1 cup",cal:122,p:8,c:12,f:5},{label:"2 cups",cal:244,p:16,c:24,f:10}]},
+  {name:"Deli Turkey",servings:[{label:"2 slices (56g)",cal:60,p:11,c:2,f:1},{label:"4 slices",cal:120,p:22,c:4,f:2}]},
+  {name:"White Rice (cooked)",servings:[{label:"½ cup",cal:103,p:2,c:22,f:0},{label:"1 cup",cal:206,p:4,c:45,f:0},{label:"1.5 cups",cal:309,p:6,c:67,f:0},{label:"2 cups",cal:412,p:8,c:90,f:0}]},
+  {name:"Brown Rice (cooked)",servings:[{label:"½ cup",cal:108,p:3,c:22,f:1},{label:"1 cup",cal:216,p:5,c:45,f:2}]},
+  {name:"Oatmeal (dry oats)",servings:[{label:"¼ cup",cal:75,p:3,c:13,f:1},{label:"½ cup",cal:150,p:5,c:27,f:3},{label:"1 cup",cal:300,p:11,c:54,f:5}]},
+  {name:"Whole Wheat Bread",servings:[{label:"1 slice",cal:100,p:4,c:19,f:1},{label:"2 slices",cal:200,p:8,c:38,f:2}]},
+  {name:"Pasta (cooked)",servings:[{label:"½ cup",cal:111,p:4,c:22,f:1},{label:"1 cup",cal:220,p:8,c:43,f:1},{label:"2 cups",cal:440,p:16,c:86,f:2}]},
+  {name:"Banana",servings:[{label:"Small",cal:72,p:1,c:19,f:0},{label:"Medium",cal:105,p:1,c:27,f:0},{label:"Large",cal:121,p:1,c:31,f:0}]},
+  {name:"Sweet Potato (baked)",servings:[{label:"Small (130g)",cal:112,p:2,c:26,f:0},{label:"Medium (180g)",cal:155,p:3,c:36,f:0},{label:"Large (255g)",cal:219,p:4,c:51,f:0}]},
+  {name:"Peanut Butter",servings:[{label:"1 tsp",cal:30,p:1,c:1,f:3},{label:"1 tbsp",cal:94,p:4,c:3,f:8},{label:"2 tbsp",cal:188,p:8,c:6,f:16}]},
+  {name:"Almond Butter",servings:[{label:"1 tbsp",cal:98,p:3,c:3,f:9},{label:"2 tbsp",cal:196,p:7,c:6,f:18}]},
+  {name:"Olive Oil",servings:[{label:"1 tsp",cal:40,p:0,c:0,f:4},{label:"1 tbsp",cal:119,p:0,c:0,f:14}]},
+  {name:"Almonds",servings:[{label:"10 nuts",cal:82,p:3,c:3,f:7},{label:"1 oz (28g)",cal:164,p:6,c:6,f:14}]},
+  {name:"Rice Cakes (plain)",servings:[{label:"1 cake",cal:35,p:1,c:7,f:0},{label:"2 cakes",cal:70,p:1,c:14,f:0},{label:"3 cakes",cal:105,p:2,c:21,f:0}]},
+  {name:"Cheese (cheddar)",servings:[{label:"1 slice (28g)",cal:110,p:7,c:0,f:9},{label:"¼ cup shredded",cal:110,p:7,c:0,f:9}]},
+  {name:"Honey",servings:[{label:"1 tsp",cal:21,p:0,c:6,f:0},{label:"1 tbsp",cal:64,p:0,c:17,f:0}]},
+  {name:"Apple",servings:[{label:"Small",cal:77,p:0,c:21,f:0},{label:"Medium",cal:95,p:0,c:25,f:0}]},
+  {name:"Protein Bar (Quest)",servings:[{label:"1 bar (60g)",cal:190,p:21,c:22,f:7}]},
+];
+
+function getTodayId(){return["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][new Date().getDay()];}
+function getWeekKey(){const n=new Date(),s=new Date(n);s.setDate(n.getDate()-n.getDay());return`wk_${s.toISOString().split("T")[0]}`;}
+function getTodayKey(){return`day_${new Date().toISOString().split("T")[0]}`;}
+function formatDate(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});}
+function usePersist(k,i){const[v,s]=useState(()=>{try{const x=localStorage.getItem(k);return x?JSON.parse(x):i;}catch{return i;}});useEffect(()=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{};},[k,v]);return[v,s];}
+
+// Get first upcoming Monday
+function getFirstMonday(){
+  const today=new Date();
+  const day=today.getDay();
+  const diff=day===1?0:day===0?1:8-day;
+  const mon=new Date(today);
+  mon.setDate(today.getDate()+diff);
+  mon.setHours(0,0,0,0);
+  return mon;
+}
+
+const CAT_COLORS={
+  "Chest":"#EF4444","Shoulders":"#3B82F6","Triceps":"#8B5CF6",
+  "Quads":"#10B981","Hamstrings":"#F59E0B","Calves":"#06B6D4","Glutes":"#EC4899",
+  "Back":"#6366F1","Biceps":"#F97316","Rear Delts":"#84CC16","Core":"#64748B","Chest/Tri":"#A855F7",
+};
+
+/* ─── MAIN APP ──────────────────────────────────────────────────── */
+export default function FellersForge(){
+  const[tab,setTab]=useState("workout");
+  const[animKey,setAnimKey]=useState(0);
+  const[tabDir,setTabDir]=useState(1);
+  const[selectedDay,setSelectedDay]=useState(()=>DAYS.find(d=>d.id===getTodayId())||DAYS[0]);
+  const[workoutLogs,setWorkoutLogs]=usePersist("ff_workouts",{});
+  const[mealLogs,setMealLogs]=usePersist("ff_meals",{});
+  const[weightLog,setWeightLog]=usePersist("ff_weight",[]);
+  const[notes,setNotes]=usePersist("ff_notes",[]);
+  const[activeEx,setActiveEx]=useState(null);
+  const[formEx,setFormEx]=useState(null);
+  const[restTimer,setRestTimer]=useState(null);
+  const[restLeft,setRestLeft]=useState(0);
+  const[showAddMeal,setShowAddMeal]=useState(false);
+  const[mealSearch,setMealSearch]=useState("");
+  const[selectedFood,setSelectedFood]=useState(null);
+  const[showCustom,setShowCustom]=useState(false);
+  const[customMeal,setCustomMeal]=useState({name:"",cal:"",p:"",c:"",f:""});
+  const[toast,setToast]=useState(null);
+  const[mounted,setMounted]=useState(false);
+  const[newWeight,setNewWeight]=useState("");
+  const[newNote,setNewNote]=useState("");
+  const[noteTag,setNoteTag]=useState("general");
+  const[calOffset,setCalOffset]=useState(0);
+  const toastRef=useRef(null);
+  const restRef=useRef(null);
+  const TAB_ORDER=["workout","nutrition","body","progress","notes","guide"];
+
+  useEffect(()=>{const t=setTimeout(()=>setMounted(true),20);return()=>clearTimeout(t);},[]);
+
+  // Rest timer
+  useEffect(()=>{
+    if(restLeft>0){
+      restRef.current=setTimeout(()=>setRestLeft(r=>r-1),1000);
+    } else if(restLeft===0&&restTimer){
+      setRestTimer(null);
+      showToast("Rest done — next set!","#10B981","🏁");
+    }
+    return()=>clearTimeout(restRef.current);
+  },[restLeft]);
+
+  function startRest(sec){setRestLeft(sec);setRestTimer(sec);showToast(`Rest: ${sec}s started`,"#475569","⏱️");}
+
+  const showToast=useCallback((msg,color="#10B981",icon="💪")=>{
+    clearTimeout(toastRef.current);
+    setToast({msg,color,icon});
+    toastRef.current=setTimeout(()=>setToast(null),2400);
+  },[]);
+
+  function switchTab(id){
+    const oi=TAB_ORDER.indexOf(tab),ni=TAB_ORDER.indexOf(id);
+    setTabDir(ni>=oi?1:-1);setTab(id);setAnimKey(k=>k+1);
+  }
+
+  const weekKey=getWeekKey();
+  const getDayLog=(id)=>workoutLogs[`${weekKey}_${id}`]||{};
+  const todayLog=getDayLog(selectedDay.id);
+
+  function getLastLog(exName){
+    const sorted=Object.keys(workoutLogs).sort().reverse();
+    for(const k of sorted){if(k===`${weekKey}_${selectedDay.id}`)continue;const d=workoutLogs[k];if(d?.[exName])return d[exName];}
+    return null;
+  }
+
+  function logSet(exName,setIdx,weight,reps,restSec){
+    const key=`${weekKey}_${selectedDay.id}`;
+    setWorkoutLogs(prev=>({...prev,[key]:{...prev[key],[exName]:{...(prev[key]?.[exName]||{}),[`s${setIdx}`]:{weight:parseFloat(weight)||0,reps:parseInt(reps)||0}}}}));
+    showToast("Set logged!","#10B981","✅");
+    if(restSec) startRest(restSec);
+  }
+
+  const todayKey=getTodayKey();
+  const todayMeals=mealLogs[todayKey]||[];
+  const totals=todayMeals.reduce((a,m)=>({cal:a.cal+(m.cal||0),p:a.p+(m.p||0),c:a.c+(m.c||0),f:a.f+(m.f||0)}),{cal:0,p:0,c:0,f:0});
+  function addMeal(food){setMealLogs(prev=>({...prev,[todayKey]:[...(prev[todayKey]||[]),{...food,id:Date.now()}]}));showToast(`Added!`,"#3B82F6","🍽️");setShowAddMeal(false);setMealSearch("");setSelectedFood(null);}
+  function removeMeal(id){setMealLogs(prev=>({...prev,[todayKey]:(prev[todayKey]||[]).filter(m=>m.id!==id)}));}
+
+  const latestWeight=weightLog.length?weightLog[weightLog.length-1].weight:142;
+  const startWeight=weightLog.length?weightLog[0].weight:142;
+  const wChange=latestWeight-startWeight;
+  function logWeight(){const w=parseFloat(newWeight);if(!w||w<50)return;setWeightLog(prev=>[...prev,{date:new Date().toISOString(),weight:w,dateLabel:formatDate(new Date())}]);setNewWeight("");showToast(`${w} lbs logged`,"#8B5CF6","⚖️");}
+
+  const NOTE_TAGS=[{id:"general",label:"General",color:"#94A3B8"},{id:"pr",label:"PR 🏆",color:"#F59E0B"},{id:"struggle",label:"Struggled",color:"#EF4444"},{id:"form",label:"Form",color:"#3B82F6"},{id:"diet",label:"Diet",color:"#10B981"},{id:"motivation",label:"Motivation",color:"#8B5CF6"}];
+  function addNote(){if(!newNote.trim())return;setNotes(prev=>[{id:Date.now(),text:newNote.trim(),tag:noteTag,date:formatDate(new Date()),time:new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})},...prev]);setNewNote("");showToast("Saved","#F59E0B","📝");}
+
+  const filteredFoods=FOOD_DB.filter(f=>f.name.toLowerCase().includes(mealSearch.toLowerCase()));
+  const c=selectedDay.color;
+  const completedCount=selectedDay.exercises.filter(ex=>{const l=todayLog[ex.name];return l&&Object.keys(l).length>=ex.sets;}).length;
+  const ringPct=Math.round((completedCount/selectedDay.exercises.length)*100);
+
+  // Calendar
+  const firstMon=getFirstMonday();
+  const calWeeks=6;
+  function getCalDays(){
+    const days=[];
+    const start=new Date(firstMon);
+    start.setDate(start.getDate()+(calOffset*7));
+    for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);days.push(d);}
+    return days;
+  }
+  const calDays=getCalDays();
+  const today=new Date();today.setHours(0,0,0,0);
+
+  return(
+    <>
+      <style>{CSS}</style>
+      {formEx&&<FormModal ex={formEx} info={EXERCISE_INFO[formEx]} onClose={()=>setFormEx(null)}/>}
+      <div className="app" style={{opacity:mounted?1:0,transform:mounted?"none":"translateY(8px)"}}>
+
+        {/* REST TIMER BAR */}
+        {restTimer&&(
+          <div className="rest-bar">
+            <span>⏱️ Rest: {restLeft}s</span>
+            <div className="rest-prog" style={{width:`${(restLeft/restTimer)*100}%`}}/>
+            <button onClick={()=>{setRestLeft(0);setRestTimer(null);}} className="rest-skip">Skip</button>
+          </div>
+        )}
+
+        {/* HEADER */}
+        <header className="header" style={{top:restTimer?36:0}}>
+          <div className="header-inner">
+            <div>
+              <div className="eyebrow">EST. TODAY · BUILT DIFFERENT</div>
+              <div className="wordmark"><span className="wm-light">FELLER'S</span><span className="wm-bold" style={{color:c}}> FORGE</span></div>
+            </div>
+            <div className="day-badge" style={{borderColor:`${c}44`,background:`${c}10`}}>
+              <div style={{fontSize:8,letterSpacing:2.5,fontWeight:800,color:c,textTransform:"uppercase"}}>TODAY</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#F1F5F9",marginTop:1}}>{selectedDay.full.slice(0,3).toUpperCase()}</div>
+              <div style={{fontSize:9,fontWeight:600,color:`${c}88`,marginTop:1}}>{selectedDay.tag}</div>
+            </div>
+          </div>
+          <nav className="tabs">
+            {[["workout","💪","Train"],["nutrition","🍽️","Eat"],["body","⚖️","Body"],["progress","📈","Stats"],["notes","📝","Notes"],["guide","📖","Guide"]].map(([id,ico,lbl])=>(
+              <button key={id} className={`tab-btn${tab===id?" tab-active":""}`}
+                style={tab===id?{background:c,color:"#fff",boxShadow:`0 2px 14px ${c}55`}:{}}
+                onClick={()=>switchTab(id)}>
+                <span style={{fontSize:13}}>{ico}</span>
+                <span style={{fontSize:9,letterSpacing:0.3,fontWeight:700}}>{lbl}</span>
+              </button>
+            ))}
+          </nav>
+        </header>
+
+        <main className="content">
+          <div key={animKey} className="tab-slide" style={{"--dir":tabDir}}>
+
+            {/* ══ WORKOUT ══ */}
+            {tab==="workout"&&(
+              <div>
+                <div className="day-scroller">
+                  {DAYS.map(day=>{
+                    const log=getDayLog(day.id);
+                    const done=day.exercises.filter(ex=>log[ex.name]&&Object.keys(log[ex.name]).length>=ex.sets).length;
+                    const sel=selectedDay.id===day.id;
+                    return(
+                      <button key={day.id} className={`day-chip${sel?" day-chip-sel":""}`}
+                        style={sel?{borderColor:day.color,background:`${day.color}18`,boxShadow:`0 0 16px ${day.glow}`}:{}}
+                        onClick={()=>{setSelectedDay(day);setActiveEx(null);}}>
+                        <span style={{fontSize:10,fontWeight:800,letterSpacing:0.5,color:sel?day.color:"#64748B"}}>{day.label}</span>
+                        <span style={{fontSize:8,fontWeight:600,color:sel?`${day.color}88`:"#2D3748"}}>{day.tag}</span>
+                        {done>0&&<span style={{fontSize:8,fontWeight:800,marginTop:2,color:day.color}}>{done}/{day.exercises.length}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Day hero */}
+                <div className="day-hero" style={{borderColor:`${c}28`,background:`linear-gradient(135deg,${c}0e 0%,transparent 60%)`}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:20,fontWeight:900,color:"#F1F5F9",letterSpacing:-0.3}}>{selectedDay.full}</div>
+                    <div style={{fontSize:10,fontWeight:700,color:c,letterSpacing:1,marginTop:2}}>{selectedDay.tag} · {selectedDay.exercises.length} EXERCISES</div>
+                    <div style={{fontSize:10,color:"#475569",marginTop:6,lineHeight:1.5}}>🔥 {selectedDay.warmup}</div>
+                  </div>
+                  <div className="ring-wrap">
+                    <svg width="56" height="56" style={{transform:"rotate(-90deg)"}}>
+                      <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4"/>
+                      <circle cx="28" cy="28" r="22" fill="none" stroke={c} strokeWidth="4"
+                        strokeDasharray={`${2*Math.PI*22}`}
+                        strokeDashoffset={`${2*Math.PI*22*(1-ringPct/100)}`}
+                        strokeLinecap="round"
+                        style={{transition:"stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)",filter:`drop-shadow(0 0 5px ${c})`}}/>
+                    </svg>
+                    <div className="ring-inner">
+                      <span style={{color:c,fontSize:14,fontWeight:900,lineHeight:1}}>{completedCount}</span>
+                      <span style={{color:"#475569",fontSize:9}}>/{selectedDay.exercises.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Group exercises by category */}
+                <div className="ex-list">
+                  {selectedDay.exercises.map((ex,i)=>{
+                    const log=todayLog[ex.name]||{};
+                    const logged=Object.keys(log).length;
+                    const done=logged>=ex.sets;
+                    const isOpen=activeEx===ex.name;
+                    const last=getLastLog(ex.name);
+                    const prevBest=last?Math.max(...Object.values(last).map(s=>s.weight).filter(w=>w>0),0):0;
+                    const info=EXERCISE_INFO[ex.name];
+                    const catColor=CAT_COLORS[ex.category]||"#64748B";
+                    return(
+                      <div key={ex.name} className="ex-wrap" style={{animationDelay:`${i*0.03}s`}}>
+                        {/* Exercise card header */}
+                        <div className={`ex-card${isOpen?" ex-card-open":""}${done?" ex-card-done":""}`}
+                          style={{
+                            borderColor:done?`${c}55`:isOpen?`${c}33`:"rgba(255,255,255,0.07)",
+                            background:done?`${c}0f`:isOpen?`${c}08`:"rgba(255,255,255,0.022)",
+                            borderRadius:isOpen?"16px 16px 0 0":14,
+                            boxShadow:isOpen?`0 8px 28px ${selectedDay.glow}`:done?`0 2px 10px ${c}18`:"none",
+                          }}>
+                          <div className="ex-main-row" onClick={()=>setActiveEx(isOpen?null:ex.name)}>
+                            <div className="ex-num-wrap">
+                              <div className="ex-num" style={{
+                                background:done?c:"rgba(255,255,255,0.04)",
+                                borderColor:done?c:`${c}33`,
+                                color:done?"#fff":"#475569",
+                                boxShadow:done?`0 0 10px ${c}77`:"none"
+                              }}>{done?"✓":i+1}</div>
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                                <span className="ex-name" style={{color:done?c:"#F1F5F9"}}>{ex.name}</span>
+                                <span className="cat-pill" style={{background:`${catColor}20`,color:catColor,borderColor:`${catColor}33`}}>{ex.category}</span>
+                              </div>
+                              <div className="ex-stats-row">
+                                <span className="ex-stat-chip">📦 {ex.sets} sets</span>
+                                <span className="ex-stat-chip">🔁 {ex.repsTarget} reps</span>
+                                <span className="ex-stat-chip">⏱️ {ex.restSec}s rest</span>
+                                {prevBest>0&&<span className="ex-stat-chip" style={{color:`${c}cc`,borderColor:`${c}33`,background:`${c}10`}}>🏆 {prevBest}lb PR</span>}
+                              </div>
+                            </div>
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flexShrink:0}}>
+                              {logged>0&&<span style={{fontSize:11,fontWeight:800,color:c}}>{logged}<span style={{color:"#334155"}}>/{ex.sets}</span></span>}
+                              <span style={{color:isOpen?c:"#2D3748",fontSize:14,transition:"transform 0.25s",transform:isOpen?"rotate(180deg)":"none",display:"block"}}>▾</span>
+                            </div>
+                          </div>
+
+                          {/* Form guide button */}
+                          {info&&(
+                            <button className="form-btn" onClick={(e)=>{e.stopPropagation();setFormEx(ex.name);}}
+                              style={{borderColor:`${c}25`,color:c,background:`${c}0a`}}>
+                              <span>📋</span> How to perform
+                            </button>
+                          )}
+
+                          {/* Set progress */}
+                          <div className="set-track">
+                            {Array.from({length:ex.sets}).map((_,si)=>(
+                              <div key={si} className="set-seg"
+                                style={{background:si<logged?c:"rgba(255,255,255,0.07)",
+                                  boxShadow:si<logged?`0 0 6px ${c}55`:"none",
+                                  transition:`background 0.3s ease ${si*0.04}s`}}/>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Expanded set logger */}
+                        <div className="set-panel" style={{
+                          borderColor:`${c}28`,
+                          maxHeight:isOpen?700:0,opacity:isOpen?1:0,
+                          paddingTop:isOpen?12:0,paddingBottom:isOpen?14:0,
+                        }}>
+                          {prevBest>0&&(
+                            <div className="prev-best" style={{background:`${c}0f`,borderColor:`${c}22`,color:c}}>
+                              <span>📊</span>
+                              <div>
+                                <div style={{fontWeight:800}}>Previous best: {prevBest} lbs</div>
+                                <div style={{fontSize:11,opacity:0.8,marginTop:1}}>Beat this today for progressive overload</div>
+                              </div>
+                            </div>
+                          )}
+                          <div className="sets-grid">
+                            {Array.from({length:ex.sets}).map((_,si)=>(
+                              <SetRow key={si} num={si+1} total={ex.sets}
+                                existing={log[`s${si}`]} prev={last?.[`s${si}`]}
+                                color={c} restSec={ex.restSec}
+                                onLog={(w,r)=>logSet(ex.name,si,w,r,ex.restSec)}/>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ══ NUTRITION ══ */}
+            {tab==="nutrition"&&(
+              <div style={{padding:"16px 18px"}}>
+                <div className="card">
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:15}}>
+                    <span className="sec-lbl">TODAY'S MACROS</span>
+                    <span style={{fontSize:18,fontWeight:900,color:"#F1F5F9"}}>{Math.round(totals.cal)}<span style={{color:"#475569",fontSize:12,fontWeight:500}}> / {MACROS.calories}</span></span>
+                  </div>
+                  <MacroBar label="Protein" current={totals.p} target={MACROS.protein} color="#EF4444" unit="g"/>
+                  <MacroBar label="Carbs"   current={totals.c} target={MACROS.carbs}   color="#3B82F6" unit="g"/>
+                  <MacroBar label="Fats"    current={totals.f} target={MACROS.fats}    color="#10B981" unit="g"/>
+                </div>
+                <button className={`add-btn${showAddMeal?" add-btn-cancel":""}`}
+                  style={!showAddMeal?{background:"linear-gradient(135deg,#3B82F6,#8B5CF6)",boxShadow:"0 4px 18px rgba(59,130,246,0.35)"}:{}}
+                  onClick={()=>{setShowAddMeal(!showAddMeal);setMealSearch("");setSelectedFood(null);setShowCustom(false);}}>
+                  {showAddMeal?"✕  Close":"+ Log Food"}
+                </button>
+                {showAddMeal&&(
+                  <div className="card" style={{marginTop:0}}>
+                    {!selectedFood?(
+                      <>
+                        <input className="search-inp" value={mealSearch} onChange={e=>setMealSearch(e.target.value)} placeholder="Search foods…" autoFocus/>
+                        <div className="food-list">
+                          {filteredFoods.map(food=>(
+                            <button key={food.name} className="food-item" onClick={()=>setSelectedFood(food)}>
+                              <span style={{fontSize:13,fontWeight:600,color:"#E2E8F0"}}>{food.name}</span>
+                              <span style={{fontSize:16,color:"#475569"}}>›</span>
+                            </button>
+                          ))}
+                        </div>
+                        <button className="custom-tog" onClick={()=>setShowCustom(!showCustom)}>{showCustom?"▴ Hide":"▾ Custom food"}</button>
+                        {showCustom&&(
+                          <div className="custom-form">
+                            {[["name","Food name","text"],["cal","Calories","number"],["p","Protein (g)","number"],["c","Carbs (g)","number"],["f","Fats (g)","number"]].map(([k,ph,type])=>(
+                              <input key={k} type={type} placeholder={ph} value={customMeal[k]} onChange={e=>setCustomMeal(p=>({...p,[k]:e.target.value}))} className="custom-inp"/>
+                            ))}
+                            <button className="custom-sub" onClick={()=>{if(!customMeal.name)return;addMeal({name:customMeal.name,cal:parseFloat(customMeal.cal)||0,p:parseFloat(customMeal.p)||0,c:parseFloat(customMeal.c)||0,f:parseFloat(customMeal.f)||0});setCustomMeal({name:"",cal:"",p:"",c:"",f:""});setShowCustom(false);}}>Add Food</button>
+                          </div>
+                        )}
+                      </>
+                    ):(
+                      <div>
+                        <button className="back-btn" onClick={()=>setSelectedFood(null)}>‹ Back</button>
+                        <div style={{fontSize:16,fontWeight:800,color:"#F1F5F9",marginBottom:12}}>{selectedFood.name}</div>
+                        <div className="sec-lbl" style={{marginBottom:10}}>SELECT SERVING</div>
+                        {selectedFood.servings.map((s,i)=>(
+                          <button key={i} className="serving-btn" onClick={()=>addMeal({name:`${selectedFood.name} (${s.label})`,cal:s.cal,p:s.p,c:s.c,f:s.f})}>
+                            <div><div style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{s.label}</div><div style={{fontSize:11,color:"#475569",marginTop:2}}>P:{s.p}g · C:{s.c}g · F:{s.f}g</div></div>
+                            <span style={{fontSize:15,fontWeight:900,color:"#F59E0B"}}>{s.cal} cal</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="sec-lbl" style={{margin:"4px 0 10px"}}>LOGGED TODAY</div>
+                {todayMeals.length===0?<div className="empty">No meals yet.</div>:(
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                    {todayMeals.map(m=>(
+                      <div key={m.id} className="meal-item">
+                        <div><div style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{m.name}</div><div style={{display:"flex",gap:9,marginTop:3,fontSize:11,fontWeight:600}}><span style={{color:"#EF4444"}}>P {m.p}g</span><span style={{color:"#3B82F6"}}>C {m.c}g</span><span style={{color:"#10B981"}}>F {m.f}g</span></div></div>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:15,fontWeight:800,color:"#F59E0B"}}>{m.cal}</span><button className="rm-btn" onClick={()=>removeMeal(m.id)}>✕</button></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══ BODY ══ */}
+            {tab==="body"&&(
+              <div style={{padding:"16px 18px"}}>
+                {/* Calendar */}
+                <div className="card" style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <span className="sec-lbl">WORKOUT CALENDAR</span>
+                    <div style={{display:"flex",gap:6}}>
+                      <button className="cal-nav" onClick={()=>setCalOffset(o=>o-1)}>‹</button>
+                      <button className="cal-nav" onClick={()=>setCalOffset(o=>o+1)}>›</button>
+                    </div>
+                  </div>
+                  <div className="cal-grid">
+                    {["M","T","W","T","F","S","S"].map((d,i)=>(
+                      <div key={i} style={{textAlign:"center",fontSize:9,fontWeight:800,color:"#334155",letterSpacing:1,paddingBottom:6}}>{d}</div>
+                    ))}
+                    {calDays.map((d,i)=>{
+                      const dId=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][d.getDay()];
+                      const workoutDay=DAYS.find(x=>x.id===dId);
+                      const wk=`wk_${new Date(d).toISOString().split("T")[0].slice(0,10)}`;
+                      const isToday=d.getTime()===today.getTime();
+                      const isPast=d<today;
+                      const isFuture=d>today;
+                      const wKey2=`wk_${new Date(d-d.getDay()*86400000).toISOString().split("T")[0]}`;
+                      const wLog=workoutLogs[`${wKey2}_${dId}`]||{};
+                      const done=workoutDay?workoutDay.exercises.filter(ex=>wLog[ex.name]&&Object.keys(wLog[ex.name]).length>=ex.sets).length:0;
+                      const total=workoutDay?workoutDay.exercises.length:0;
+                      const complete=total>0&&done===total;
+                      const partial=done>0&&done<total;
+                      const dc=workoutDay?workoutDay.color:"#1E293B";
+                      return(
+                        <button key={i} className="cal-day"
+                          style={{
+                            background:isToday?`${dc}22`:complete?`${dc}18`:partial?`${dc}0d`:"transparent",
+                            border:`1.5px solid ${isToday?dc:complete?`${dc}55`:partial?`${dc}33`:"rgba(255,255,255,0.05)"}`,
+                            color:isToday?dc:workoutDay?(isFuture?"#475569":complete?dc:"#E2E8F0"):"#1E293B",
+                            boxShadow:isToday?`0 0 12px ${dc}44`:"none",
+                            cursor:workoutDay?"pointer":"default",
+                          }}
+                          onClick={()=>{if(workoutDay){setSelectedDay(workoutDay);switchTab("workout");}}}>
+                          <div style={{fontSize:12,fontWeight:isToday?900:600}}>{d.getDate()}</div>
+                          {workoutDay&&<div style={{fontSize:8,marginTop:1,color:isToday?dc:isFuture?"#2D3748":complete?dc:"#475569",fontWeight:700,letterSpacing:0.3}}>{workoutDay.tag}</div>}
+                          {complete&&<div style={{fontSize:8,color:dc}}>✓</div>}
+                          {partial&&<div style={{fontSize:8,color:dc}}>{done}/{total}</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Weight */}
+                <div className="card">
+                  <div style={{display:"flex",justifyContent:"space-around",marginBottom:16}}>
+                    {[[latestWeight,"lbs now","#8B5CF6"],[`${wChange>=0?"+":""}${wChange.toFixed(1)}`,"lbs change",wChange>=0?"#10B981":"#EF4444"],[weightLog.length,"check-ins","#F59E0B"]].map(([v,l,col])=>(
+                      <div key={l} style={{textAlign:"center"}}>
+                        <div style={{fontSize:26,fontWeight:900,color:col,letterSpacing:-0.5}}>{v}</div>
+                        <div style={{fontSize:10,color:"#475569",fontWeight:600,marginTop:2}}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:10}}>
+                    <input className="search-inp" type="number" placeholder="142.5 lbs" value={newWeight} onChange={e=>setNewWeight(e.target.value)} style={{margin:0,flex:1}} onKeyDown={e=>e.key==="Enter"&&logWeight()}/>
+                    <button className="log-weight-btn" onClick={logWeight} style={{background:"linear-gradient(135deg,#8B5CF6,#3B82F6)"}}>Log</button>
+                  </div>
+                  <div style={{fontSize:11,color:"#1E293B",marginTop:7}}>Weigh every morning after bathroom, before eating.</div>
+                </div>
+
+                {weightLog.length>1&&(
+                  <div className="card"><div className="sec-lbl" style={{marginBottom:14}}>WEIGHT TREND</div><WeightChart data={weightLog} color="#8B5CF6"/></div>
+                )}
+                <div className="sec-lbl" style={{margin:"0 0 10px"}}>HISTORY</div>
+                {weightLog.length===0?<div className="empty">No weigh-ins yet.</div>:(
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                    {[...weightLog].reverse().map((entry,i,arr)=>{
+                      const prev=arr[i+1];const delta=prev?entry.weight-prev.weight:null;
+                      return(
+                        <div key={i} className="meal-item">
+                          <div><div style={{fontSize:13,fontWeight:700,color:"#E2E8F0"}}>{entry.weight} lbs</div><div style={{fontSize:11,color:"#475569",marginTop:2}}>{entry.dateLabel}</div></div>
+                          {delta!==null?<span style={{fontSize:13,fontWeight:800,color:delta>0?"#10B981":delta<0?"#EF4444":"#475569"}}>{delta>0?"+":""}{delta.toFixed(1)} lbs</span>:<span style={{fontSize:11,color:"#334155"}}>starting</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══ PROGRESS ══ */}
+            {tab==="progress"&&(
+              <div style={{padding:"16px 18px"}}>
+                <div className="sec-lbl" style={{marginBottom:12}}>KEY LIFTS</div>
+                {[
+                  {ex:"Barbell Bench Press",day:"monday",goal:165,start:105,color:"#3B82F6",icon:"🏋️",label:"Bench Press"},
+                  {ex:"Barbell Back Squat",day:"tuesday",goal:225,start:95,color:"#10B981",icon:"🦵",label:"Back Squat"},
+                  {ex:"Pull-Ups / Assisted",day:"wednesday",goal:10,start:0,color:"#8B5CF6",icon:"💪",label:"Pull-Ups",isReps:true},
+                  {ex:"Overhead Press (OHP)",day:"friday",goal:115,start:65,color:"#EF4444",icon:"⬆️",label:"OHP"},
+                ].map(({ex,day,goal,start,color,icon,label,isReps})=>{
+                  const bests=[];
+                  Object.entries(workoutLogs).forEach(([k,dl])=>{if(k.includes(day)&&dl[ex]){const m=Math.max(...Object.values(dl[ex]).map(s=>isReps?s.reps:s.weight).filter(x=>x>0));if(m>0)bests.push(m);}});
+                  const best=bests.length?Math.max(...bests):start;
+                  const pct=Math.min(100,Math.max(0,Math.round(((best-start)/(goal-start))*100)));
+                  return(
+                    <div key={ex} className="card" style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <span style={{fontSize:18}}>{icon}</span>
+                          <div><div style={{fontSize:14,fontWeight:700,color:"#E2E8F0"}}>{label}</div><div style={{fontSize:11,color:"#475569",marginTop:2}}>{start} → {goal}{isReps?" reps":"lbs"}</div></div>
+                        </div>
+                        <div style={{fontSize:24,fontWeight:900,color,letterSpacing:-0.5}}>{best}{isReps?"":"lbs"}</div>
+                      </div>
+                      <div style={{background:"rgba(255,255,255,0.06)",borderRadius:5,height:6,overflow:"hidden"}}>
+                        <div style={{height:"100%",borderRadius:5,width:`${Math.max(2,pct)}%`,background:color,boxShadow:`0 0 8px ${color}66`,transition:"width 0.9s cubic-bezier(.4,0,.2,1)"}}/>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:11,fontWeight:600}}>
+                        <span style={{color:"#475569"}}>{pct}% to goal</span>
+                        <span style={{color}}>{goal-best>0?`${goal-best}${isReps?" reps":"lbs"} to go`:"🎯 Goal hit!"}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="sec-lbl" style={{margin:"8px 0 12px"}}>THIS WEEK</div>
+                <div className="card">
+                  <div style={{display:"flex",justifyContent:"space-around"}}>
+                    {DAYS.map(day=>{
+                      const log=getDayLog(day.id);
+                      const done=day.exercises.filter(ex=>log[ex.name]&&Object.keys(log[ex.name]).length>=ex.sets).length;
+                      const pct=Math.round((done/day.exercises.length)*100);
+                      const isT=day.id===getTodayId();
+                      return(
+                        <div key={day.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+                          <div style={{position:"relative",width:46,height:46}}>
+                            <svg width="46" height="46" style={{transform:"rotate(-90deg)"}}>
+                              <circle cx="23" cy="23" r="17" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3"/>
+                              <circle cx="23" cy="23" r="17" fill="none" stroke={day.color} strokeWidth="3"
+                                strokeDasharray={`${2*Math.PI*17}`}
+                                strokeDashoffset={`${2*Math.PI*17*(1-pct/100)}`}
+                                strokeLinecap="round"
+                                style={{transition:"stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1)"}}/>
+                            </svg>
+                            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {pct===100?<span style={{color:day.color,fontSize:13}}>✓</span>:<span style={{color:pct>0?day.color:"#2D3748",fontSize:9,fontWeight:700}}>{pct>0?`${pct}%`:"–"}</span>}
+                            </div>
+                          </div>
+                          <span style={{fontSize:10,fontWeight:700,color:isT?day.color:"#475569",letterSpacing:0.5}}>{day.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="sec-lbl" style={{margin:"8px 0 12px"}}>3-MONTH TARGETS</div>
+                <div className="card">
+                  {[["Bench Press","145–165 lbs","#3B82F6"],["Body Weight","150–158 lbs","#10B981"],["Daily Protein","150g/day","#EF4444"],["Visible Abs","On track 🔥","#F59E0B"]].map(([l,v,col])=>(
+                    <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                      <span style={{fontSize:13,color:"#94A3B8",fontWeight:500}}>{l}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:col}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ══ NOTES ══ */}
+            {tab==="notes"&&(
+              <div style={{padding:"16px 18px"}}>
+                <div className="card">
+                  <div className="sec-lbl" style={{marginBottom:12}}>NEW NOTE</div>
+                  <textarea className="note-input" placeholder='"Struggled with 145 bench, form broke on set 3"' value={newNote} onChange={e=>setNewNote(e.target.value)}/>
+                  <div style={{marginTop:10,marginBottom:12}}>
+                    <div className="sec-lbl" style={{marginBottom:8}}>TAG</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {NOTE_TAGS.map(t=>(
+                        <button key={t.id} className="tag-btn" style={noteTag===t.id?{borderColor:t.color,color:t.color,background:`${t.color}15`}:{}} onClick={()=>setNoteTag(t.id)}>{t.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <button className="custom-sub" onClick={addNote} style={{background:"linear-gradient(135deg,#F59E0B,#EF4444)",boxShadow:"0 3px 14px rgba(245,158,11,0.3)"}}>Save Note</button>
+                </div>
+                <div className="sec-lbl" style={{margin:"0 0 10px"}}>YOUR NOTES</div>
+                {notes.length===0?<div className="empty">Start logging your wins and struggles.</div>:(
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {notes.map(note=>{
+                      const tag=NOTE_TAGS.find(t=>t.id===note.tag)||NOTE_TAGS[0];
+                      return(
+                        <div key={note.id} className="note-item" style={{borderLeftColor:tag.color}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                            <span style={{fontSize:10,fontWeight:800,padding:"3px 8px",borderRadius:6,color:tag.color,background:`${tag.color}15`}}>{tag.label}</span>
+                            <span style={{fontSize:10,color:"#475569"}}>{note.date} · {note.time}</span>
+                          </div>
+                          <div style={{fontSize:13,color:"#CBD5E1",lineHeight:1.6,paddingRight:28}}>{note.text}</div>
+                          <button className="note-del" onClick={()=>setNotes(p=>p.filter(n=>n.id!==note.id))}>✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══ GUIDE ══ */}
+            {tab==="guide"&&<GuideTab/>}
+
+          </div>
+        </main>
+
+        {toast&&(
+          <div className="toast" style={{background:toast.color}}>
+            <span>{toast.icon}</span>{toast.msg}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ─── FORM MODAL ─────────────────────────────────────────────────── */
+function FormModal({ex,info,onClose}){
+  const[step,setStep]=useState(0);
+  if(!info)return null;
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <div className="modal-title">{ex}</div>
+            <div className="modal-sub">{info.equipment}</div>
+          </div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="modal-body">
+          {/* Muscle target */}
+          <div className="guide-chip-row">
+            <div className="guide-chip" style={{background:"rgba(239,68,68,0.12)",borderColor:"rgba(239,68,68,0.25)",color:"#EF4444"}}>
+              <span>🎯</span> {info.muscle}
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="sec-lbl" style={{marginBottom:10}}>STEP-BY-STEP</div>
+          <div className="steps-list">
+            {info.steps.map((s,i)=>(
+              <div key={i} className={`step-item${step===i?" step-active":""}`} onClick={()=>setStep(i)}>
+                <div className="step-num" style={{background:step===i?"#3B82F6":"rgba(255,255,255,0.05)",color:step===i?"#fff":"#475569"}}>{i+1}</div>
+                <div className="step-text" style={{color:step===i?"#F1F5F9":"#94A3B8"}}>{s}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Cues */}
+          <div className="sec-lbl" style={{margin:"16px 0 10px"}}>COACHING CUES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {info.cues.map((c,i)=>(
+              <div key={i} className="cue-item">{c}</div>
+            ))}
+          </div>
+
+          {/* Common mistakes */}
+          <div className="sec-lbl" style={{margin:"16px 0 10px"}}>COMMON MISTAKES</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+            {info.mistakes.map((m,i)=>(
+              <div key={i} className="mistake-item"><span>⚠️</span> {m}</div>
+            ))}
+          </div>
+
+          <div className="rest-info">⏱️ {info.rest}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── GUIDE TAB ─────────────────────────────────────────────────── */
+function GuideTab(){
+  const[section,setSection]=useState("plan");
+  const sections=[["plan","🗓️","The Plan"],["nutrition","🥩","Nutrition"],["supps","💊","Supplements"],["recovery","💤","Recovery"],["mindset","🔥","Mindset"]];
+  return(
+    <div style={{padding:"16px 18px"}}>
+      <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:12,scrollbarWidth:"none"}}>
+        {sections.map(([id,ico,lbl])=>(
+          <button key={id} className="guide-sec-btn" style={section===id?{background:"#3B82F6",color:"#fff",borderColor:"#3B82F6",boxShadow:"0 2px 12px rgba(59,130,246,0.4)"}:{}}
+            onClick={()=>setSection(id)}>
+            {ico} {lbl}
+          </button>
+        ))}
+      </div>
+
+      {section==="plan"&&(
+        <div>
+          <GuideCard title="Your Program: Push/Legs/Pull Split" color="#3B82F6">
+            <p>This is a scientifically validated 5-day split. Each muscle group gets trained 1.5–2x per week — the optimal frequency for beginners (Schoenfeld, 2016). At 15 with peak hormone levels, you're in the best position of your life to build muscle fast.</p>
+          </GuideCard>
+          <GuideCard title="Progressive Overload — The #1 Rule" color="#10B981">
+            <p>Add 2.5–5 lbs to compound lifts (bench, squat, OHP) every week. Add reps if you can't add weight. When you hit the TOP of the rep range consistently, add weight. This single principle drives 90% of your gains.</p>
+          </GuideCard>
+          <GuideCard title="Rep Ranges Explained" color="#8B5CF6">
+            <p><strong style={{color:"#EF4444"}}>6–8 reps (heavy compound lifts):</strong> Builds strength AND muscle. Heaviest work of the session — full rest between sets.</p>
+            <p style={{marginTop:8}}><strong style={{color:"#F59E0B"}}>8–12 reps (main hypertrophy):</strong> The sweet spot for muscle growth. Most of your exercises live here.</p>
+            <p style={{marginTop:8}}><strong style={{color:"#10B981"}}>12–20 reps (isolation/volume):</strong> Cables, raises, curls. Builds definition and adds volume to smaller muscles.</p>
+          </GuideCard>
+          <GuideCard title="3-Month Strength Projections" color="#F59E0B">
+            {[["Bench Press","105lb → 145–165lb"],["Back Squat","~95lb → 175–195lb"],["OHP","~65lb → 95–115lb"],["Pull-Ups","→ 8–10 clean reps"]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <span style={{fontSize:12,color:"#94A3B8"}}>{l}</span>
+                <span style={{fontSize:12,fontWeight:700,color:"#F59E0B"}}>{v}</span>
+              </div>
+            ))}
+          </GuideCard>
+          <GuideCard title="Deload Weeks" color="#EF4444">
+            <p>Every 8–10 weeks, take a deload week. Cut weight by 40%, halve sets. This lets tendons and ligaments recover (they adapt slower than muscle). Skipping deloads = injuries.</p>
+          </GuideCard>
+        </div>
+      )}
+
+      {section==="nutrition"&&(
+        <div>
+          <GuideCard title="Your Daily Targets" color="#10B981">
+            {[["Calories","2,800–3,000 kcal","#F59E0B"],["Protein","150g (1g per lb bodyweight)","#EF4444"],["Carbs","350–400g","#3B82F6"],["Fats","70–90g","#10B981"],["Water","70–140 oz (9–18 cups)","#06B6D4"]].map(([l,v,col])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontSize:12,color:"#94A3B8"}}>{l}</span>
+                <span style={{fontSize:12,fontWeight:800,color:col}}>{v}</span>
+              </div>
+            ))}
+          </GuideCard>
+          <GuideCard title="Meal Timing" color="#3B82F6">
+            <p><strong style={{color:"#3B82F6"}}>Breakfast:</strong> Within 45 min of waking. 4 eggs + rice or oatmeal. (~500 cal, 35g protein)</p>
+            <p style={{marginTop:6}}><strong style={{color:"#8B5CF6"}}>Pre-Workout:</strong> Banana + peanut butter 30–60 min before. Fast carbs = fuel.</p>
+            <p style={{marginTop:6}}><strong style={{color:"#10B981"}}>Post-Workout:</strong> Protein shake + milk within 45 min. This is the most important meal window.</p>
+            <p style={{marginTop:6}}><strong style={{color:"#F59E0B"}}>Before Bed:</strong> Cottage cheese or casein. Slow-digesting protein feeds muscles overnight during GH release.</p>
+          </GuideCard>
+          <GuideCard title="Quick Dinners (15–20 min)" color="#F59E0B">
+            {["Ground beef + white rice + frozen stir-fry veggies (~700 cal, 50g P)","Sheet pan chicken thighs + rice + frozen broccoli (~680 cal, 55g P)","Pasta + ground beef + jarred marinara + parmesan (~750 cal, 48g P)","2 cans tuna + rice + frozen edamame + soy sauce (~580 cal, 58g P)","5-egg scramble + diced potato + cheese (~550 cal, 40g P)"].map((m,i)=>(
+              <div key={i} className="cue-item" style={{marginBottom:5}}>🍽️ {m}</div>
+            ))}
+          </GuideCard>
+          <GuideCard title="Foods to Cut Back On" color="#EF4444">
+            <p>You don't need to be perfect — 80/20 rule. Just minimize these:</p>
+            {["Soda and sugary drinks → swap for water or milk","Candy and chips → swap for fruit, rice cakes, Greek yogurt","Fast food → limit to 1–2x/week, order grilled not fried"].map((m,i)=>(
+              <div key={i} className="mistake-item" style={{marginTop:6}}><span>⚠️</span> {m}</div>
+            ))}
+          </GuideCard>
+        </div>
+      )}
+
+      {section==="supps"&&(
+        <div>
+          <GuideCard title="Creatine Monohydrate ⭐⭐⭐ MUST" color="#3B82F6">
+            <p>Most studied sports supplement ever. 700+ peer-reviewed studies. Increases ATP production → more reps, more weight, faster strength gains. 3–5g per day, any time, with water. Costs $15–25 for a 3–4 month supply.</p>
+            <p style={{marginTop:8,color:"#F59E0B",fontSize:12}}>💡 Results in 2–3 weeks: +5–15 lbs on main lifts. Not magic — it just lets you work harder every session.</p>
+          </GuideCard>
+          <GuideCard title="Whey Protein ⭐⭐⭐ MUST" color="#10B981">
+            <p>Not a "steroid" — it's just food in powder form. Helps hit your 150g/day protein target when whole foods aren't enough. 1–2 scoops per day. Post-workout is ideal but any time works.</p>
+          </GuideCard>
+          <GuideCard title="Vitamin D3 + K2 ⭐⭐ HIGH" color="#8B5CF6">
+            <p>Most teens are deficient. Supports testosterone production, bone density, and immune system. 2000–4000 IU D3 + 100mcg K2, take with a meal containing fat.</p>
+          </GuideCard>
+          <GuideCard title="Omega-3 Fish Oil ⭐⭐ HIGH" color="#F59E0B">
+            <p>Reduces inflammation, improves muscle recovery, supports brain health (useful for school too). 2–3g EPA+DHA per day with meals.</p>
+          </GuideCard>
+          <GuideCard title="Magnesium Glycinate ⭐⭐ HIGH" color="#EF4444">
+            <p>Most teens are deficient. Improves sleep quality dramatically, which means more growth hormone released overnight. 200–400mg before bed.</p>
+          </GuideCard>
+          <GuideCard title="What to AVOID" color="#475569">
+            {["Pre-workout with high stimulants — too young, affects heart rate","Testosterone boosters — your natural T is already at peak levels","Anything claiming 30 lbs of muscle in 30 days — scam","SARMs, prohormones, or anything that 'works like steroids' — dangerous at your age"].map((w,i)=>(
+              <div key={i} className="mistake-item" style={{marginTop:6}}><span>🚫</span> {w}</div>
+            ))}
+          </GuideCard>
+        </div>
+      )}
+
+      {section==="recovery"&&(
+        <div>
+          <GuideCard title="Sleep: Your #1 Performance Drug" color="#8B5CF6">
+            <p>Growth hormone is released primarily during deep sleep. At 15, you produce more GH than you ever will again — but ONLY if you actually sleep. 8–9 hours minimum.</p>
+            {["Set consistent bedtime: 10–11pm","No screens 30–60 min before bed (blue light kills melatonin)","Keep room cool and dark","This could be worth 10–15% more gains vs. bad sleep"].map((t,i)=>(
+              <div key={i} className="cue-item" style={{marginTop:5}}>💤 {t}</div>
+            ))}
+          </GuideCard>
+          <GuideCard title="Active Recovery (Weekends)" color="#10B981">
+            <p>Light basketball, swimming, walking — keeps metabolism up without adding training fatigue. Aim for 7,000–10,000 steps daily. Low-intensity movement burns fat without burning muscle.</p>
+          </GuideCard>
+          <GuideCard title="Muscle Soreness vs. Injury" color="#EF4444">
+            <p><strong style={{color:"#10B981"}}>Normal soreness (DOMS):</strong> Dull, affects both sides, worst 24–48 hrs after training, feels better once you warm up.</p>
+            <p style={{marginTop:8}}><strong style={{color:"#EF4444"}}>Injury:</strong> Sharp, one-sided, worsens during movement, doesn't improve with warmup. STOP and rest if this happens.</p>
+          </GuideCard>
+          <GuideCard title="Dehydration Warning" color="#F59E0B">
+            <p>Being just 2% dehydrated drops strength by 5–10%. Drink water constantly throughout the day. Target: 70–140 oz (9–18 cups) per day. Urine should be pale yellow.</p>
+          </GuideCard>
+        </div>
+      )}
+
+      {section==="mindset"&&(
+        <div>
+          <GuideCard title="Motivation is a Lie" color="#EF4444">
+            <p>Motivation is a feeling. Feelings come and go. Discipline is a system. Systems don't care how you feel. Every person with a body they're proud of trained on days they didn't want to. That's exactly how they got there.</p>
+          </GuideCard>
+          <GuideCard title="The 10-Minute Rule" color="#3B82F6">
+            <p>On days you'd rather do anything else — just commit to 10 minutes. Get there, start warming up. Almost every time, you'll finish the full session. And if you don't? You still showed up. That still counts.</p>
+          </GuideCard>
+          <GuideCard title="Never Miss Twice" color="#F59E0B">
+            <p>Missing one day happens. Life is real. But never let one missed day become two. Two becomes a week. A week becomes "I used to work out." One miss is a slip. Two is a choice.</p>
+          </GuideCard>
+          <GuideCard title="The Silent Transformation" color="#8B5CF6">
+            <p>Don't announce you're working out. Don't post about it yet. Just quietly execute. In 6 months, show up to the beach and let the results do the talking. That reaction is worth more than any number of gym selfies before you've built anything.</p>
+          </GuideCard>
+          <GuideCard title="What Every Rep on a Bad Day Is Worth" color="#10B981">
+            <p>Every rep you do when you don't want to is worth 3x the reps you do when you feel great. That's not motivational fluff — the adaptation response to training under fatigue and resistance is measurably higher. Train when it's hard.</p>
+          </GuideCard>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GuideCard({title,color,children}){
+  return(
+    <div style={{background:"rgba(255,255,255,0.025)",border:`1px solid ${color}30`,borderLeft:`3px solid ${color}`,borderRadius:14,padding:"14px 15px",marginBottom:12}}>
+      <div style={{fontSize:13,fontWeight:800,color:"#F1F5F9",marginBottom:10,lineHeight:1.3}}>{title}</div>
+      <div style={{fontSize:12,color:"#94A3B8",lineHeight:1.7}}>{children}</div>
+    </div>
+  );
+}
+
+/* ─── SET ROW ───────────────────────────────────────────────────── */
+function SetRow({num,total,existing,prev,color,restSec,onLog}){
+  const[weight,setWeight]=useState(existing?.weight||prev?.weight||"");
+  const[reps,setReps]=useState(existing?.reps||prev?.reps||"");
+  const done=!!existing;
+  return(
+    <div className="set-row" style={{borderColor:done?`${color}44`:"rgba(255,255,255,0.07)",background:done?`${color}0d`:"rgba(255,255,255,0.03)"}}>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",minWidth:28}}>
+        <div style={{fontSize:10,fontWeight:800,color:done?color:"#475569",lineHeight:1}}>
+          {done?"✓":`S${num}`}
+        </div>
+        <div style={{fontSize:8,color:"#2D3748",marginTop:1}}>{num}/{total}</div>
+      </div>
+      <div style={{flex:1,display:"flex",gap:6,alignItems:"center"}}>
+        <div style={{flex:1,position:"relative"}}>
+          <input className="set-inp" type="number" placeholder="lbs" value={weight} onChange={e=>setWeight(e.target.value)}/>
+          <span style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",fontSize:9,color:"#334155",pointerEvents:"none"}}>lbs</span>
+        </div>
+        <span style={{color:"#2D3748",fontSize:13,fontWeight:300}}>×</span>
+        <div style={{flex:1,position:"relative"}}>
+          <input className="set-inp" type="number" placeholder="reps" value={reps} onChange={e=>setReps(e.target.value)}/>
+          <span style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",fontSize:9,color:"#334155",pointerEvents:"none"}}>reps</span>
+        </div>
+      </div>
+      <button className="log-btn" style={{background:done?`${color}22`:color,color:done?color:"#fff",boxShadow:done?"none":`0 2px 8px ${color}55`,minWidth:46}}
+        onClick={()=>{if(weight||reps)onLog(weight,reps);}}>
+        {done?"✓":"LOG"}
+      </button>
+    </div>
+  );
+}
+
+/* ─── MACRO BAR ─────────────────────────────────────────────────── */
+function MacroBar({label,current,target,color,unit}){
+  const pct=Math.min(100,Math.round((current/target)*100));
+  const over=current>target;
+  return(
+    <div style={{marginBottom:13}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:12,color:"#94A3B8",fontWeight:600}}>{label}</span>
+        <span style={{fontSize:12,fontWeight:700}}><span style={{color:over?"#EF4444":color}}>{Math.round(current)}</span><span style={{color:"#334155"}}>/{target}{unit}</span></span>
+      </div>
+      <div style={{background:"rgba(255,255,255,0.06)",borderRadius:5,height:6,overflow:"hidden"}}>
+        <div style={{height:"100%",borderRadius:5,width:`${pct}%`,background:over?`linear-gradient(90deg,${color},#EF4444)`:color,boxShadow:`0 0 7px ${color}44`,transition:"width 0.7s cubic-bezier(.4,0,.2,1)"}}/>
+      </div>
+    </div>
+  );
+}
+
+/* ─── WEIGHT CHART ──────────────────────────────────────────────── */
+function WeightChart({data,color}){
+  const h=110,pad=14,w=320;
+  const vals=data.map(d=>d.weight);
+  const mn=Math.min(...vals)-2,mx=Math.max(...vals)+2;
+  const pts=data.map((d,i)=>({x:pad+(i/(data.length-1||1))*(w-pad*2),y:h-pad-((d.weight-mn)/(mx-mn||1))*(h-pad*2)}));
+  const path=pts.map((p,i)=>i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`).join(" ");
+  const area=`${path} L${pts[pts.length-1].x},${h} L${pts[0].x},${h} Z`;
+  return(
+    <svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",height:"auto"}}>
+      <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.3"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+      <path d={area} fill="url(#wg)"/>
+      <path d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{filter:`drop-shadow(0 0 5px ${color}77)`}}/>
+      {pts.map((p,i)=>(
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="4" fill={color} style={{filter:`drop-shadow(0 0 4px ${color})`}}/>
+          <text x={p.x} y={h-1} textAnchor="middle" fontSize="9" fill="#334155" fontFamily="Plus Jakarta Sans,sans-serif">{data[i].dateLabel?.split(" ")[1]||""}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/* ─── CSS ───────────────────────────────────────────────────────── */
+const CSS=`
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+.app{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#070B12;min-height:100vh;max-width:480px;margin:0 auto;color:#E2E8F0;position:relative;overflow-x:hidden;transition:opacity 0.5s ease,transform 0.5s ease;}
+.app::before{content:"";position:fixed;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:26px 26px;pointer-events:none;z-index:0;}
+
+/* REST BAR */
+.rest-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#1E293B;z-index:200;height:36px;display:flex;align-items:center;padding:0 16px;font-size:12px;font-weight:700;color:#94A3B8;overflow:hidden;}
+.rest-prog{position:absolute;left:0;top:0;height:100%;background:rgba(59,130,246,0.2);transition:width 1s linear;}
+.rest-skip{margin-left:auto;position:relative;z-index:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:3px 10px;color:#94A3B8;font-size:11px;cursor:pointer;font-family:inherit;}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:100;background:rgba(7,11,18,0.93);backdrop-filter:blur(28px) saturate(1.8);border-bottom:1px solid rgba(255,255,255,0.05);padding:14px 18px 0;transition:top 0.3s;}
+.header-inner{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.eyebrow{font-size:8px;letter-spacing:3px;color:#1E293B;font-weight:800;text-transform:uppercase;margin-bottom:3px;}
+.wordmark{font-size:21px;font-weight:900;letter-spacing:-0.3px;line-height:1;}
+.wm-light{color:#475569;font-weight:500;}
+.wm-bold{font-weight:900;}
+.day-badge{border:1px solid;border-radius:12px;padding:6px 13px;text-align:center;}
+.tabs{display:flex;gap:4px;padding-bottom:13px;}
+.tab-btn{flex:1;padding:7px 2px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;background:rgba(255,255,255,0.04);color:#4B5563;transition:all 0.28s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;justify-content:center;gap:3px;flex-direction:column;}
+.tab-btn:hover:not(.tab-active){background:rgba(255,255,255,0.07);color:#64748B;}
+.tab-active{font-weight:800!important;}
+.content{position:relative;z-index:1;padding-bottom:90px;}
+.tab-slide{animation:tabSlideIn 0.38s cubic-bezier(0.34,1.56,0.64,1) both;}
+@keyframes tabSlideIn{from{opacity:0;transform:translateX(calc(var(--dir)*22px)) scale(0.98);}to{opacity:1;transform:translateX(0) scale(1);}}
+
+/* DAY SCROLLER */
+.day-scroller{display:flex;gap:7px;padding:16px 18px 12px;overflow-x:auto;scrollbar-width:none;}
+.day-scroller::-webkit-scrollbar{display:none;}
+.day-chip{flex-shrink:0;padding:9px 12px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.025);cursor:pointer;text-align:center;min-width:52px;transition:all 0.26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;align-items:center;gap:2px;}
+.day-chip:hover{background:rgba(255,255,255,0.05);}
+
+/* DAY HERO */
+.day-hero{margin:0 18px 14px;padding:15px 17px;border:1px solid;border-radius:16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.ring-wrap{position:relative;width:56px;height:56px;flex-shrink:0;}
+.ring-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1;}
+
+/* EXERCISE CARDS */
+.ex-list{padding:0 18px;display:flex;flex-direction:column;gap:8px;}
+.ex-wrap{animation:fadeUp 0.3s cubic-bezier(.4,0,.2,1) both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.ex-card{border:1.5px solid;padding:13px 14px 8px;transition:all 0.26s cubic-bezier(.4,0,.2,1);}
+.ex-card:hover{filter:brightness(1.06);}
+.ex-main-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:8px;}
+.ex-num-wrap{flex-shrink:0;padding-top:1px;}
+.ex-num{width:26px;height:26px;border-radius:8px;border:1.5px solid;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;transition:all 0.3s ease;}
+.ex-name{font-size:13.5px;font-weight:800;line-height:1.2;}
+.cat-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid;letter-spacing:0.3px;flex-shrink:0;}
+.ex-stats-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.ex-stat-chip{font-size:10px;color:#64748B;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:3px 7px;font-weight:600;}
+.form-btn{width:100%;padding:7px 12px;border-radius:9px;border:1px solid;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;margin:6px 0 0;transition:all 0.2s ease;}
+.form-btn:hover{filter:brightness(1.2);}
+.set-track{display:flex;gap:4px;margin-top:8px;}
+.set-seg{height:3px;flex:1;border-radius:3px;transition:background 0.3s ease,box-shadow 0.3s ease;}
+
+/* SET PANEL */
+.set-panel{border:1.5px solid;border-top:none;border-radius:0 0 16px 16px;overflow:hidden;max-height:0;opacity:0;padding:0 13px;transition:max-height 0.4s cubic-bezier(.4,0,.2,1),opacity 0.28s ease,padding 0.3s ease;}
+.prev-best{border:1px solid;border-radius:10px;padding:10px 12px;font-size:12px;font-weight:600;display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;}
+.sets-grid{display:flex;flex-direction:column;gap:7px;}
+.set-row{display:flex;align-items:center;gap:7px;padding:9px 11px;border-radius:10px;border:1px solid;transition:all 0.2s ease;}
+.set-inp{width:100%;padding:8px 24px 8px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#E2E8F0;font-size:13px;font-family:inherit;font-weight:600;text-align:center;outline:none;transition:border-color 0.2s;}
+.set-inp:focus{border-color:rgba(255,255,255,0.2);}
+.set-inp::placeholder{color:#1E293B;}
+.log-btn{padding:8px 10px;border-radius:8px;border:none;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.2s cubic-bezier(.4,0,.2,1);}
+.log-btn:active{transform:scale(0.91);}
+
+/* CARD */
+.card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:15px;margin-bottom:12px;}
+.sec-lbl{font-size:9px;font-weight:800;letter-spacing:2.5px;color:#475569;text-transform:uppercase;display:block;}
+
+/* FOOD */
+.add-btn{display:block;width:100%;margin-bottom:12px;padding:13px;border-radius:12px;border:none;color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.25s cubic-bezier(.4,0,.2,1);}
+.add-btn:active{transform:scale(0.98);}
+.add-btn-cancel{background:rgba(255,255,255,0.06)!important;color:#4B5563!important;box-shadow:none!important;}
+.search-inp{width:100%;padding:10px 13px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#E2E8F0;font-size:13px;font-family:inherit;outline:none;margin-bottom:10px;transition:border-color 0.2s;}
+.search-inp:focus{border-color:rgba(255,255,255,0.2);}
+.search-inp::placeholder{color:#334155;}
+.food-list{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto;}
+.food-item{text-align:left;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.17s;display:flex;justify-content:space-between;align-items:center;}
+.food-item:hover{background:rgba(255,255,255,0.07);}
+.back-btn{background:none;border:none;color:#64748B;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;padding:0 0 12px;display:block;}
+.serving-btn{width:100%;text-align:left;padding:11px 13px;border-radius:11px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);cursor:pointer;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;transition:all 0.18s;}
+.serving-btn:hover{background:rgba(255,255,255,0.07);}
+.custom-tog{width:100%;margin-top:10px;padding:9px;border-radius:9px;border:1px dashed rgba(255,255,255,0.1);background:transparent;color:#475569;font-size:12px;cursor:pointer;font-family:inherit;}
+.custom-form{margin-top:10px;display:flex;flex-direction:column;gap:7px;}
+.custom-inp{padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.04);color:#E2E8F0;font-size:13px;font-family:inherit;outline:none;}
+.custom-inp::placeholder{color:#2D3748;}
+.custom-sub{padding:11px;border-radius:11px;border:none;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.2s;width:100%;}
+.custom-sub:active{transform:scale(0.98);}
+.meal-item{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;animation:fadeUp 0.25s cubic-bezier(.4,0,.2,1) both;}
+.rm-btn{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.18);border-radius:6px;padding:3px 8px;color:#EF4444;cursor:pointer;font-size:11px;}
+.empty{text-align:center;color:#2D3748;padding:36px 0;font-size:13px;line-height:1.9;}
+
+/* CALENDAR */
+.cal-nav{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 10px;color:#94A3B8;cursor:pointer;font-size:14px;font-family:inherit;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{padding:6px 2px;border-radius:9px;border:1.5px solid;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:54px;justify-content:center;transition:all 0.2s ease;}
+.cal-day:hover{filter:brightness(1.15);}
+
+/* WEIGHT */
+.log-weight-btn{padding:10px 16px;border-radius:10px;border:none;color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.2s;}
+
+/* NOTES */
+.note-input{width:100%;padding:11px 13px;border-radius:11px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.04);color:#E2E8F0;font-size:13px;font-family:inherit;outline:none;resize:none;min-height:90px;line-height:1.6;}
+.note-input::placeholder{color:#334155;}
+.tag-btn{padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#475569;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;}
+.note-item{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-left:3px solid;border-radius:12px;padding:12px 14px;position:relative;animation:fadeUp 0.25s cubic-bezier(.4,0,.2,1) both;}
+.note-del{position:absolute;top:10px;right:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);border-radius:6px;padding:3px 7px;color:#EF4444;cursor:pointer;font-size:11px;}
+
+/* GUIDE */
+.guide-sec-btn{flex-shrink:0;padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#64748B;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.22s;}
+.guide-chip-row{margin-bottom:12px;}
+.guide-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid;font-size:11px;font-weight:700;}
+.steps-list{display:flex;flex-direction:column;gap:7px;}
+.step-item{display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:8px;border-radius:10px;transition:background 0.2s;}
+.step-item:hover{background:rgba(255,255,255,0.04);}
+.step-active{background:rgba(59,130,246,0.08)!important;}
+.step-num{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;transition:all 0.2s;}
+.step-text{font-size:12px;line-height:1.6;padding-top:2px;}
+.cue-item{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:9px 12px;font-size:12px;color:#CBD5E1;line-height:1.5;}
+.mistake-item{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:#94A3B8;line-height:1.5;}
+.rest-info{margin-top:14px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:9px;padding:9px 12px;font-size:12px;color:#F59E0B;font-weight:700;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{background:#0D1421;border:1px solid rgba(255,255,255,0.1);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;animation:slideUp 0.35s cubic-bezier(0.34,1.4,0.64,1) both;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-header{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;justify-content:space-between;align-items:flex-start;}
+.modal-title{font-size:17px;font-weight:900;color:#F1F5F9;}
+.modal-sub{font-size:11px;color:#475569;margin-top:3px;}
+.modal-close{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;color:#64748B;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+.modal-body{flex:1;overflow-y:auto;padding:16px 18px 32px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent;}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:999;box-shadow:0 8px 28px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;animation:toastBounce 0.3s cubic-bezier(0.34,1.56,0.64,1) both;white-space:nowrap;}
+@keyframes toastBounce{from{opacity:0;transform:translateX(-50%) translateY(14px) scale(0.88);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.07);border-radius:2px;}
+button{-webkit-tap-highlight-color:transparent;}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+`;
+
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<FellersForge />);
+</script>
+
+</body>
+</html>
